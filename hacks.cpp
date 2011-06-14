@@ -20,6 +20,7 @@
  */
 
 #include "hacks.h"
+#include "mm_util.h"
 #include "CDetour/detours.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,6 +29,7 @@
 #include <mach-o/nlist.h>
 
 static struct nlist dyld_syms[2];
+static struct nlist steamclient_syms[2];
 static struct nlist dedicated_syms[9];
 static struct nlist launcher_syms[3];
 static struct nlist engine_syms[2];
@@ -61,7 +63,7 @@ static inline T SymbolAddr(void *base, struct nlist *syms, size_t idx)
 	return reinterpret_cast<T>(reinterpret_cast<uintptr_t>(base) + syms[idx].n_value);
 }
 
-bool InitSymbolData(bool steam)
+bool InitSymbolData(const char *steamPath)
 {
 	memset(dyld_syms, 0, sizeof(dyld_syms));
 	dyld_syms[0].n_un.n_name = (char *)"__ZN4dyld29processDyldEnvironmentVaribleEPKcS1_";
@@ -71,7 +73,24 @@ bool InitSymbolData(bool steam)
 		printf("Failed to find symbols for dyld\n");
 		return false;
 	}
-	
+
+#if defined(ENGINE_OBV)
+	if (steamPath)
+	{
+		char clientPath[PATH_MAX];
+		mm_Format(clientPath, sizeof(clientPath), "%s/steamclient.dylib", steamPath);
+		
+		memset(steamclient_syms, 0, sizeof(steamclient_syms));
+		steamclient_syms[0].n_un.n_name = (char *)"__ZN14IClientUserMap14GetAccountNameEPcj";
+		
+		if (nlist(clientPath, steamclient_syms) != 0)
+		{
+			printf("Failed to find symbols for steamclient.dylib\n");
+			return false;
+		}
+	}
+#endif
+
 	memset(dedicated_syms, 0, sizeof(dedicated_syms));
 	dedicated_syms[0].n_un.n_name = (char *)"__ZN4CSys11LoadModulesEP24CDedicatedAppSystemGroup";
 	dedicated_syms[1].n_un.n_name = (char *)"__ZN15CAppSystemGroup10AddSystemsEP15AppSystemInfo_t";
@@ -79,7 +98,7 @@ bool InitSymbolData(bool steam)
 	dedicated_syms[3].n_un.n_name = (char *)"__ZL17g_pBaseFileSystem";
 	dedicated_syms[4].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc";
 #if defined(ENGINE_OBV)
-	dedicated_syms[5].n_un.n_name = steam ? (char *)"__ZL18g_FileSystem_Steam" : (char *)"_g_FileSystem_Stdio";
+	dedicated_syms[5].n_un.n_name = steamPath ? (char *)"__ZL18g_FileSystem_Steam" : (char *)"_g_FileSystem_Stdio";
 	dedicated_syms[6].n_un.n_name = (char *)"__ZN17CFileSystem_Steam4InitEv";
 	dedicated_syms[7].n_un.n_name = (char *)"__Z17MountDependenciesiR10CUtlVectorIj10CUtlMemoryIjiEE";
 #else
@@ -429,6 +448,18 @@ void RemoveDedicatedDetours()
 		detLoadModule->Destroy();
 	}
 #endif
+}
+
+void *GetAccountNameFunc(const void *entryPoint)
+{
+	Dl_info info;
+	if (!dladdr(entryPoint, &info) || !info.dli_fbase || !info.dli_fname)
+	{
+		printf("Failed to get base address of steamclient.dylib\n");
+		return NULL;
+	}
+
+	return SymbolAddr<void *>(info.dli_fbase, steamclient_syms, 0);
 }
 
 #if defined(ENGINE_L4D)

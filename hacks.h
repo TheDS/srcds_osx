@@ -23,7 +23,7 @@
 #define _INCLUDE_SRCDS_OSX_HACKS_H_
 
 /* Initialize data required to resolve hidden symbols */
-bool InitSymbolData(bool steam);
+bool InitSymbolData(const char *steamPath);
 
 /* Sets DYLD_LIBRARY_PATH */
 int SetLibraryPath(const char *path);
@@ -33,6 +33,9 @@ bool DoDedicatedHacks(void *entryPoint, bool steam, int appid);
 
 /* Destroy detours for dedicated.dylib */
 void RemoveDedicatedDetours();
+
+/* Get address of IClientUser::GetAccountName in steamclient */
+void *GetAccountNameFunc(const void *entryPoint);
 
 #if defined(ENGINE_L4D)
 

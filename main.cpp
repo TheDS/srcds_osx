@@ -107,9 +107,12 @@ bool SetSteamAppUser()
 		dlclose(steamclient);
 		return false;
 	}
+
+	typedef const char * (*GetAccountName_t)(void *, char *, unsigned int);
+	GetAccountName_t GetAccountName = (GetAccountName_t)GetAccountNameFunc((void *)factory);
 	
 	char account[256];
-	if (!clientUser->GetAccountName(account, sizeof(account)))
+	if (!GetAccountName(clientUser, account, sizeof(account)) || account[0] == '\0')
 	{
 		printf("Failed to get account name of current steam user!\n");
 		clientEngine->ReleaseSteamPipe(pipe);
@@ -210,7 +213,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Initialize symbol offsets for various libraries that we will be using */
-	if (!InitSymbolData(steam))
+	if (!InitSymbolData(steam ? steamPath : NULL))
 	{
 		return -1;
 	}

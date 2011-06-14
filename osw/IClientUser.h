@@ -47,6 +47,7 @@ public:
 	virtual void AcknowledgeVACBanning( AppId_t nAppID ) = 0;
 
 	virtual void SetSteam2Ticket( uint8* pubTicket, int cubTicket ) = 0;
+	virtual bool BExistsSteam2Ticket() = 0;
 
 	virtual bool SetEmail( const char *pchEmail ) = 0;
 
