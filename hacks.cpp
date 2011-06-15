@@ -26,9 +26,25 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dlfcn.h>
+
+#include <AvailabilityMacros.h>
+#include <CoreServices/CoreServices.h>
+#include <mach/task.h>
 #include <mach-o/nlist.h>
 
-static struct nlist dyld_syms[2];
+/* Define things from 10.6 SDK for older SDKs */
+#ifndef MAC_OS_X_VERSION_10_6
+#define TASK_DYLD_INFO 17
+struct task_dyld_info
+{
+	mach_vm_address_t all_image_info_addr;
+	mach_vm_size_t all_image_info_size;
+};
+typedef struct task_dyld_info task_dyld_info_data_t;
+#define TASK_DYLD_INFO_COUNT (sizeof(task_dyld_info_data_t) / sizeof(natural_t))
+#endif
+
+static struct nlist dyld_syms[3];
 static struct nlist steamclient_syms[2];
 static struct nlist dedicated_syms[9];
 static struct nlist launcher_syms[3];
@@ -66,7 +82,8 @@ static inline T SymbolAddr(void *base, struct nlist *syms, size_t idx)
 bool InitSymbolData(const char *steamPath)
 {
 	memset(dyld_syms, 0, sizeof(dyld_syms));
-	dyld_syms[0].n_un.n_name = (char *)"__ZN4dyld29processDyldEnvironmentVaribleEPKcS1_";
+	dyld_syms[0].n_un.n_name = (char *)"__ZL18_dyld_set_variablePKcS0_";
+	dyld_syms[1].n_un.n_name = (char *)"_dyld_all_image_infos";
 
 	if (nlist("/usr/lib/dyld", dyld_syms) != 0)
 	{
@@ -160,6 +177,23 @@ int SetLibraryPath(const char *path)
 	if (ret != 0)
 	{
 		return ret;
+	}
+
+	SInt32 osx_major, osx_minor;
+	Gestalt(gestaltSystemVersionMajor, &osx_major);
+	Gestalt(gestaltSystemVersionMinor, &osx_minor);
+
+	if (osx_major == 10 && osx_minor >= 6 || osx_major > 10)
+	{
+		task_dyld_info_data_t dyld_info;
+		mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
+		if (task_info(mach_task_self(), TASK_DYLD_INFO, (task_info_t)&dyld_info, &count) != KERN_SUCCESS)
+		{
+			printf("Failed to get dyld task info for current process\n");
+			return -1;
+		}
+		/* Shift dyld address; this can happen with ASLR on Lion (10.7) */
+		dyld_syms[0].n_value += int32_t(dyld_info.all_image_info_addr - dyld_syms[1].n_value);
 	}
 	
 	/* A hacky hack */
