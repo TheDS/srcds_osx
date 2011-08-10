@@ -103,6 +103,7 @@ bool SetSteamAppUser()
 	if (!clientUser)
 	{
 		printf("Failed to get steam client user interface!\n");
+		clientEngine->ReleaseUser(pipe, user);
 		clientEngine->ReleaseSteamPipe(pipe);
 		dlclose(steamclient);
 		return false;
@@ -115,6 +116,7 @@ bool SetSteamAppUser()
 	if (!GetAccountName(clientUser, account, sizeof(account)) || account[0] == '\0')
 	{
 		printf("Failed to get account name of current steam user!\n");
+		clientEngine->ReleaseUser(pipe, user);
 		clientEngine->ReleaseSteamPipe(pipe);
 		dlclose(steamclient);
 		return false;
@@ -123,6 +125,7 @@ bool SetSteamAppUser()
 	/* Needed to mount steam content */
 	setenv("SteamAppUser", account, 1);
 
+	clientEngine->ReleaseUser(pipe, user);
 	clientEngine->ReleaseSteamPipe(pipe);
 	dlclose(steamclient);
 
