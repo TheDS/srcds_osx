@@ -56,7 +56,7 @@ public:
 
 	virtual void SetSteam2FullASTicket( uint8 *pubTicket, int cubTicket ) = 0;
 
-	virtual bool UpdateAppOwnershipTicket( AppId_t appId, bool ) = 0;
+	virtual bool BUpdateAppOwnershipTicket( AppId_t appId, bool ) = 0;
 
 	virtual uint32 GetAppOwnershipTicketLength( AppId_t appId ) = 0;
 	virtual uint32 GetAppOwnershipTicketData( AppId_t appId, void *lpTicketData, uint32 cubTicketData ) = 0;
@@ -64,6 +64,8 @@ public:
 	virtual bool GetAppDecryptionKey( AppId_t appId, void *lpDecryptionKey, uint32 cubDecryptionKey ) = 0;
 
 	virtual const char* GetPlatformName( bool* ) = 0;
+	
+	virtual uint32 GetSteam2FullASTicket( uint8* pubTicket, int32 cubTicket ) = 0;
 };
 
 #endif // ISTEAM2BRIDGE002_H

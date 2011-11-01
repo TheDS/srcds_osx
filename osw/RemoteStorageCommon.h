@@ -26,6 +26,7 @@
 #define STEAMREMOTESTORAGE_INTERFACE_VERSION_002 "STEAMREMOTESTORAGE_INTERFACE_VERSION002"
 #define STEAMREMOTESTORAGE_INTERFACE_VERSION_003 "STEAMREMOTESTORAGE_INTERFACE_VERSION003"
 #define STEAMREMOTESTORAGE_INTERFACE_VERSION_004 "STEAMREMOTESTORAGE_INTERFACE_VERSION004"
+#define STEAMREMOTESTORAGE_INTERFACE_VERSION_005 "STEAMREMOTESTORAGE_INTERFACE_VERSION005"
 
 #define CLIENTREMOTESTORAGE_INTERFACE_VERSION "CLIENTREMOTESTORAGE_INTERFACE_VERSION001"
 
@@ -35,6 +36,14 @@ typedef enum ERemoteStorageFileRoot
 {
 	k_ERemoteStorageFileRootInvalid = 0,
 	k_ERemoteStorageFileRootDefault,
+	k_ERemoteStorageFileRootGameInstall,
+	k_ERemoteStorageFileRootWinMyDocuments,
+	k_ERemoteStorageFileRootWinAppDataLocal,
+	k_ERemoteStorageFileRootWinAppDataRoaming,
+	k_ERemoteStorageFileRootSteamUserBaseStorage,
+	k_ERemoteStorageFileRootMacHome,
+	k_ERemoteStorageFileRootMacAppSupport,
+	k_ERemoteStorageFileRootMacDocuments,
 	k_ERemoteStorageFileRootMax
 } ERemoteStorageFileRoot;
 
@@ -48,12 +57,12 @@ typedef enum ERemoteStorageSyncState
 	k_ERemoteSyncStatePendingChangesInCloudAndLocally = 5,
 } ERemoteStorageSyncState;
 
-typedef enum EScreenshotPrivacyState
+typedef enum EUCMFilePrivacyState
 {
-	k_EScreenshotPrivacyStatePrivate = 2,
-	k_EScreenshotPrivacyStateFriendsOnly = 4,
-	k_EScreenshotPrivacyStatePublic = 8,
-} EScreenshotPrivacyState;
+	k_EUCMFilePrivacyStatePrivate = 2,
+	k_EUCMFilePrivacyStateFriendsOnly = 4,
+	k_EUCMFilePrivacyStatePublic = 8,
+} EUCMFilePrivacyState;
 
 typedef enum ERemoteStoragePlatform
 {
@@ -74,6 +83,11 @@ typedef enum EResolveConflict
 	k_EResolveConflictKeepServer = 2,		// The server version of each file will be used to overwrite the local version
 } EResolveConflict;
 
+
+struct RemoteStorageUpdatePublishedFileRequest_t;
+enum ERemoteStoragePublishedFileVisibility{};
+enum ERemoteStoragePublishedFileSortOrder{};
+struct SteamParamStringArray_t;
 
 #pragma pack( push, 8 )
 
@@ -139,7 +153,7 @@ struct RemoteStorageFileShareResult_t
 //-----------------------------------------------------------------------------
 // Purpose: The result of a call to UGCDownload()
 //-----------------------------------------------------------------------------
-struct RemoteStorageDownloadUGCResult_t
+struct Deprecated_RemoteStorageDownloadUGCResult_t
 {
 	enum { k_iCallback = k_iClientRemoteStorageCallbacks + 8 };
 	EResult m_eResult;				// The result of the operation.
@@ -148,6 +162,20 @@ struct RemoteStorageDownloadUGCResult_t
 	int32 m_nSizeInBytes;			// The size of the file that was downloaded, in bytes.
 	char *m_pchFileName;			// The name of the file that was downloaded. This pointer is
 	// not guaranteed to be valid indefinitely.
+	uint64 m_ulSteamIDOwner;		// Steam ID of the user who created this content.
+};
+
+//-----------------------------------------------------------------------------
+// Purpose: The result of a call to UGCDownload()
+//-----------------------------------------------------------------------------
+struct RemoteStorageDownloadUGCResult_t
+{
+	enum { k_iCallback = k_iClientRemoteStorageCallbacks + 17 };
+	EResult m_eResult;				// The result of the operation.
+	UGCHandle_t m_hFile;			// The handle to the file that was attempted to be downloaded.
+	AppId_t m_nAppID;				// ID of the app that created this file.
+	int32 m_nSizeInBytes;			// The size of the file that was downloaded, in bytes.
+	char m_pchFileName[260];		// The name of the file that was downloaded.
 	uint64 m_ulSteamIDOwner;		// Steam ID of the user who created this content.
 };
 

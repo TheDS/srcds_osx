@@ -14,42 +14,27 @@
 //
 //=============================================================================
 
-#ifndef MATCHMAKINGKEYVALUEPAIR_H
-#define MATCHMAKINGKEYVALUEPAIR_H
+#ifndef SCREENSHOTSCOMMON_H
+#define SCREENSHOTSCOMMON_H
 #ifdef _WIN32
 #pragma once
 #endif
 
-#ifndef CLANG
-#include <stdio.h>
-#include <string.h>
-#endif
 
-#ifdef _WIN32
-	#pragma warning(push) 
-	#pragma warning(disable: 4996) 
-#endif
+#include "RemoteStorageCommon.h"
 
-struct MatchMakingKeyValuePair_t
-{
-	MatchMakingKeyValuePair_t() { m_szKey[0] = m_szValue[0] = 0; }
-	
-#ifndef CLANG
-	MatchMakingKeyValuePair_t( const char *pchKey, const char *pchValue )
-	{
-		strncpy( m_szKey, pchKey, sizeof(m_szKey) ); // this is a public header, use basic c library string funcs only!
-		m_szKey[ sizeof( m_szKey ) - 1 ] = '\0';
-		strncpy( m_szValue, pchValue, sizeof(m_szValue) );
-		m_szValue[ sizeof( m_szValue ) - 1 ] = '\0';
-	}
-#endif
 
-	char m_szKey[ 256 ];
-	char m_szValue[ 256 ];
-};
+// versions
+#define CLIENTSCREENSHOTS_INTERFACE_VERSION "CLIENTSCREENSHOTS_INTERFACE_VERSION001"
+#define STEAMSCREENSHOTS_INTERFACE_VERSION_001 "STEAMSCREENSHOTS_INTERFACE_VERSION001"
 
-#ifdef _WIN32
-	#pragma warning(pop) 
-#endif
+// types
+typedef uint32 HScreenshot;
 
-#endif // MATCHMAKINGKEYVALUEPAIR_H
+// callbacks
+#pragma pack( push, 8 )
+
+#pragma pack( pop )
+
+
+#endif // SCREENSHOTSCOMMON_H

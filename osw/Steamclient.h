@@ -99,6 +99,8 @@
 #include "ISteamClient008.h"
 #include "ISteamClient009.h"
 #include "ISteamClient010.h"
+#include "ISteamClient011.h"
+#include "ISteamClient012.h"
 
 // friends
 #include "ISteamFriends001.h"
@@ -110,6 +112,10 @@
 #include "ISteamFriends007.h"
 #include "ISteamFriends008.h"
 #include "ISteamFriends009.h"
+#include "ISteamFriends010.h"
+
+// screenshots
+#include "ISteamScreenshots001.h"
 
 // user
 #include "ISteamUser004.h"
@@ -167,6 +173,7 @@
 #include "ISteamGameServer008.h"
 #include "ISteamGameServer009.h"
 #include "ISteamGameServer010.h"
+#include "ISteamGameServer011.h"
 
 // master server updater
 #include "ISteamMasterServerUpdater001.h"
@@ -180,6 +187,7 @@
 #include "ISteamMatchmaking006.h"
 #include "ISteamMatchmaking007.h"
 #include "ISteamMatchmaking008.h"
+#include "ISteamMatchmaking009.h"
 
 // matchmaking servers
 #include "ISteamMatchmakingServers001.h"
@@ -199,8 +207,9 @@
 // remote storage
 #include "ISteamRemoteStorage001.h"
 #include "ISteamRemoteStorage002.h"
-#include "ISteamRemoteStorage004.h"
 #include "ISteamRemoteStorage003.h"
+#include "ISteamRemoteStorage004.h"
+#include "ISteamRemoteStorage005.h"
 
 // content server
 #include "ISteamContentServer001.h"
@@ -236,6 +245,7 @@
 
 #include "IClientAppManager.h"
 #include "IClientApps.h"
+#include "IClientAudio.h"
 #include "IClientBilling.h"
 #include "IClientContentServer.h"
 #include "IClientDepotBuilder.h"
@@ -249,6 +259,7 @@
 #include "IClientMatchmakingServers.h"
 #include "IClientNetworking.h"
 #include "IClientRemoteStorage.h"
+#include "IClientScreenshots.h"
 #include "IClientUser.h"
 #include "IClientUserStats.h"
 #include "IClientUtils.h"

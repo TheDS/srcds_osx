@@ -3,7 +3,7 @@ BINARY = srcds_osx
 OBJECTS = main.cpp hacks.cpp mm_util.cpp CDetour/detours.cpp asm/asm.c cocoa_helpers.mm
 
 CXX = g++
-CFLAGS = -pipe -isysroot /Developer/SDKs/MacOSX10.5.sdk -fno-strict-aliasing -fvisibility=hidden -m32 -Wall
+CFLAGS = -pipe -isysroot /Developer/SDKs/MacOSX10.6.sdk -fno-strict-aliasing -fvisibility=hidden -m32 -Wall
 CXXFLAGS = -fvisibility-inlines-hidden
 OPTFLAGS = -O3 -Werror
 DBGFLAGS = -g -ggdb3

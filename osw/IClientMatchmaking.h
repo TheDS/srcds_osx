@@ -41,6 +41,7 @@ public:
 	virtual void AddRequestLobbyListFilterSlotsAvailable( int nSlotsAvailable ) = 0;
 	virtual void AddRequestLobbyListDistanceFilter( ELobbyDistanceFilter filter ) = 0;
 	virtual void AddRequestLobbyListResultCountFilter( int cMaxResults ) = 0;
+	virtual void AddRequestLobbyListCompatibleMembersFilter( CSteamID steamID ) = 0;
 
 	virtual CSteamID GetLobbyByIndex( int iLobby ) = 0;
 
@@ -80,9 +81,16 @@ public:
 	virtual bool SetLobbyJoinable( CSteamID steamIDLobby, bool bLobbyJoinable ) = 0;
 	virtual CSteamID GetLobbyOwner( CSteamID steamIDLobby ) = 0;
 	virtual bool SetLobbyOwner( CSteamID steamIDLobby, CSteamID steamIDNewOwner ) = 0;
+	virtual bool SetLinkedLobby( CSteamID steamIDLobby, CSteamID steamIDLobby2 ) = 0;
 
 	virtual int GetGMSServerCount() = 0;
 	virtual bool GetGMSServerAddress( int iServer, uint32 *unServerIP, uint16 *usServerPort ) = 0;
+
+	// TODO : Check this when at least one GMS will be online.
+	virtual SteamAPICall_t BeginGMSQuery( AppId_t nAppId, int32 iRegionCode, const char* szFilterText ) = 0;
+	virtual int32 PollGMSQuery( SteamAPICall_t hGMSQuery ) = 0;
+	virtual int32 GetGMSQueryResults( SteamAPICall_t hGMSQuery, GMSQueryResult_t *pGMSQueryResult, int32 iResultIndex ) = 0;
+	virtual void ReleaseGMSQuery( SteamAPICall_t hGMSQuery ) = 0;
 };
 
 

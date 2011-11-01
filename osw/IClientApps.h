@@ -35,9 +35,8 @@ public:
 	virtual AppId_t GetInternalAppIDFromGameID( CGameID gameID ) = 0;
 
 	virtual void RequestAppCallbacks( bool bOnlyMultiplayerApps ) = 0;
-	virtual void SendUserSpecificAppData( AppId_t unAppID, void* pvData, int cbData ) = 0;
 
-	virtual int GetAppDataSection( AppId_t unAppID, int eSection, uint8 *pchBuffer, int cbBufferMax, bool bUseSymbolsAsKeys ) = 0;
+	virtual int GetAppDataSection( AppId_t unAppID, EAppInfoSection eSection, uint8 *pchBuffer, int cbBufferMax, bool bUseSymbolsAsKeys ) = 0;
 	virtual bool RequestAppInfoUpdate( const AppId_t *pAppIDs, int nNumAppIDs, bool bForceUpdate ) = 0;
 
 	virtual void NotifyAppEventTriggered( AppId_t unAppID, EAppEvent eAppEvent ) = 0;
@@ -45,6 +44,8 @@ public:
 
 	virtual int GetDLCCount( AppId_t unAppID ) = 0;
 	virtual bool BGetDLCDataByIndex( AppId_t unAppID, int iIndex, AppId_t* unDLCAppID, bool *, char *, int) = 0;
+
+	virtual bool BReloadLocalAppInfoOverrides() = 0;
 };
 
 #endif // ICLIENTAPPS_H

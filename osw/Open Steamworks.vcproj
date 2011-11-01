@@ -171,6 +171,10 @@
 					>
 				</File>
 				<File
+					RelativePath=".\IClientAudio.h"
+					>
+				</File>
+				<File
 					RelativePath=".\IClientBilling.h"
 					>
 				</File>
@@ -232,6 +236,10 @@
 				</File>
 				<File
 					RelativePath=".\IClientRemoteStorage.h"
+					>
+				</File>
+				<File
+					RelativePath=".\IClientScreenshots.h"
 					>
 				</File>
 				<File
@@ -333,6 +341,14 @@
 						RelativePath=".\ISteamClient010.h"
 						>
 					</File>
+					<File
+						RelativePath=".\ISteamClient011.h"
+						>
+					</File>
+					<File
+						RelativePath=".\ISteamClient012.h"
+						>
+					</File>
 				</Filter>
 				<Filter
 					Name="ISteamContentServer"
@@ -393,6 +409,10 @@
 						RelativePath=".\ISteamFriends009.h"
 						>
 					</File>
+					<File
+						RelativePath=".\ISteamFriends010.h"
+						>
+					</File>
 				</Filter>
 				<Filter
 					Name="ISteamGameServer"
@@ -435,6 +455,10 @@
 					</File>
 					<File
 						RelativePath=".\ISteamGameServer010.h"
+						>
+					</File>
+					<File
+						RelativePath=".\ISteamGameServer011.h"
 						>
 					</File>
 				</Filter>
@@ -506,6 +530,10 @@
 						>
 					</File>
 					<File
+						RelativePath=".\ISteamMatchmaking009.h"
+						>
+					</File>
+					<File
 						RelativePath=".\MatchmakingCommon.h"
 						>
 					</File>
@@ -571,6 +599,10 @@
 					</File>
 					<File
 						RelativePath=".\ISteamRemoteStorage004.h"
+						>
+					</File>
+					<File
+						RelativePath=".\ISteamRemoteStorage005.h"
 						>
 					</File>
 					<File
@@ -795,6 +827,18 @@
 					</File>
 					<File
 						RelativePath=".\ISteamHTTP001.h"
+						>
+					</File>
+				</Filter>
+				<Filter
+					Name="ISteamScreenshots"
+					>
+					<File
+						RelativePath=".\ISteamScreenshots001.h"
+						>
+					</File>
+					<File
+						RelativePath=".\ScreenshotsCommon.h"
 						>
 					</File>
 				</Filter>

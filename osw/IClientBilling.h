@@ -24,10 +24,14 @@
 #include "BillingCommon.h"
 
 
+enum EPackageStatus
+{
+};
+
+
 abstract_class UNSAFE_INTERFACE IClientBilling
 {
 public:
-	virtual bool GetActivationCodeInfo( const char *pchActivationCode ) = 0;
 	virtual bool PurchaseWithActivationCode( const char *pchActivationCode ) = 0;
 
 	virtual bool CancelLicense( PackageId_t packageID, int32 nCancelReason ) = 0;
@@ -37,13 +41,13 @@ public:
 	virtual PackageId_t GetLicensePackageID( uint32 nLicenseIndex ) = 0;
 	virtual RTime32 GetLicenseTimeCreated( uint32 nLicenseIndex ) = 0;
 	virtual RTime32 GetLicenseTimeNextProcess( uint32 nLicenseIndex ) = 0;
-	virtual int GetLicenseMinuteLimit( uint32 nLicenseIndex ) = 0;
-	virtual int GetLicenseMinutesUsed( uint32 nLicenseIndex ) = 0;
+	virtual int32 GetLicenseMinuteLimit( uint32 nLicenseIndex ) = 0;
+	virtual int32 GetLicenseMinutesUsed( uint32 nLicenseIndex ) = 0;
 	virtual EPaymentMethod GetLicensePaymentMethod( uint32 nLicenseIndex ) = 0;
 	virtual uint32 GetLicenseFlags( uint32 nLicenseIndex ) = 0;
 	virtual const char *GetLicensePurchaseCountryCode( uint32 nLicenseIndex ) = 0;
-	virtual int GetLicenseTerritoryCode( uint32 nLicenseIndex ) = 0;
-	virtual bool GetLicenseInfo( uint32 nLicenseIndex, uint32 *, uint32 *, int *, int *, EPaymentMethod *, uint32 *, int *, char * ) = 0;
+	virtual int32 GetLicenseTerritoryCode( uint32 nLicenseIndex ) = 0;
+	virtual bool GetLicenseInfo( uint32 nLicenseIndex, uint32 * puTimeCreated, uint32 * puTimeNextProcess, int32 * piMinuteLimit, int32 * piMinutesUsed, EPaymentMethod * pePaymentMethod, uint32 * puFlags, int32 * piTerritoryCode, char * pchPurchaseCountryCode /* Use a 3 bytes buffer */) = 0;
 
 	virtual PackageId_t GetReceiptPackageID( uint32 nReceiptIndex ) = 0;
 	virtual EPurchaseStatus GetReceiptStatus( uint32 nReceiptIndex ) = 0;
@@ -75,12 +79,17 @@ public:
 	virtual bool GetReceiptBillingAddress( uint32 nReceiptIndex, char* pchFirstName, char* pchLastName, char* pchAddress1, char* pchAddress2, char* pchCity, char* pchPostcode, char* pchState, char* pchCountry, char* pchPhone ) = 0;
 
 	virtual uint32 GetReceiptLineItemCount( uint32 nReceiptIndex ) = 0;
-	virtual bool GetReceiptLineItemInfo( uint32 nReceiptIndex, uint32 nLineItemIndex, PackageId_t *nPackageID, uint32 *nBaseCost, uint32 *nDiscount, uint32 *nTax, uint32 *nShipping, ECurrencyCode *eCurrencyCode ) = 0;
+	virtual bool GetReceiptLineItemInfo( uint32 nReceiptIndex, uint32 nLineItemIndex, PackageId_t *nPackageID, uint32 *nBaseCost, uint32 *nDiscount, uint32 *nTax, uint32 *nShipping, ECurrencyCode *eCurrencyCode, AppId_t *punAppId, char *pchDescription ) = 0;
 
 	virtual void EnableTestLicense( PackageId_t unPackageID ) = 0;
 	virtual void DisableTestLicense( PackageId_t unPackageID ) = 0;
 
 	virtual bool ActivateOEMTicket( const char *pchOEMLicenseFile ) = 0;
+
+	virtual bool GetLicenseForAppID( AppId_t unAppId, PackageId_t * punPackageID ) = 0;
+	virtual bool GetPackageInfo( PackageId_t unPackageID, uint32 * puNumAppIds, uint32 * puNumDepotIDs, EBillingType * peBillingType, ELicenseType * peLicenseType, EPackageStatus * pePackageStatus, int32 * piCodeClass, int32 * piGameCode, int32 * piTerritoryCode ) = 0;
+	virtual uint32 GetAppsInPackage( PackageId_t unPackageID, AppId_t* puIds, uint32 uMaxIds, bool bExcludeDepots ) = 0;
+	virtual uint32 GetPackageExtendedInfo( PackageId_t unPackageID, const char *cszKey, char *szValue, int32 cubValue ) = 0;
 };
 
 #endif // ICLIENTBILLING_H

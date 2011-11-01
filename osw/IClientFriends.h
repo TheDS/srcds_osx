@@ -41,7 +41,7 @@ public:
 	// sets the status, communicates to server, tells all friends
 	virtual void SetPersonaState( EPersonaState ePersonaState ) = 0;
 
-	virtual bool NotifyUIOfMenuChange( bool bShowAvatars, bool bSortByName, bool bShowOnlineOnly ) = 0;
+	virtual bool NotifyUIOfMenuChange( bool bShowAvatars, bool bSortByName, bool bShowOnlineOnly, bool bShowTaggedFriends ) = 0;
 
 	// friend iteration
 	virtual int GetFriendCount( EFriendFlags iFriendFlags ) = 0;
@@ -79,6 +79,9 @@ public:
 
 	// accesses old friends names - returns an empty string when their are no more items in the history
 	virtual const char *GetFriendPersonaNameHistory( CSteamID steamIDFriend, int iPersonaName ) = 0;
+	
+	virtual SteamAPICall_t RequestPersonaNameHistory( CSteamID steamIDFriend ) = 0;
+	virtual const char * GetFriendPersonaNameHistoryAndDate( CSteamID steamIDFriend, int32 iPersonaName, RTime32 * puTime ) = 0;
 
 	virtual bool AddFriend( CSteamID steamID ) = 0;
 	virtual bool RemoveFriend( CSteamID steamID ) = 0;
@@ -94,6 +97,23 @@ public:
 	virtual bool SetIgnoreFriend( CSteamID steamID, bool bIgnore ) = 0;
 
 	virtual bool ReportChatDeclined( CSteamID steamID ) = 0;
+	
+	
+	virtual bool CreateFriendsGroup( const char* pchGroupName ) = 0;
+	virtual bool DeleteFriendsGroup( int16 iGroupID ) = 0;
+	virtual bool RenameFriendsGroup( const char* pchNewGroupName, int16 iGroupID ) = 0;
+	virtual bool AddFriendToGroup( CSteamID steamID, int16 iGroupID ) = 0;
+	virtual bool RemoveFriendFromGroup( CSteamID steamID, int16 iGroupID ) = 0;
+	virtual bool IsFriendMemberOfFriendsGroup( CSteamID steamID, int16 iGroupID ) = 0;
+	virtual int16 GetFriendsGroupCount() = 0;
+	virtual int16 GetFriendsGroupIDByIndex( int16 iGroupIndex ) = 0;
+	virtual const char * GetFriendsGroupName( int16 iGroupID ) = 0;
+	virtual int16 GetFriendsGroupMembershipCount( int16 iGroupID ) = 0;
+	virtual CSteamID GetFirstFriendsGroupMember( int16 iGroupID ) = 0;
+	virtual CSteamID GetNextFriendsGroupMember( int16 iGroupID ) = 0;
+	virtual int16 GetGroupFriendsMembershipCount( CSteamID steamID ) = 0;
+	virtual int16 GetFirstGroupFriendsMember( CSteamID steamID ) = 0;
+	virtual int16 GetNextGroupFriendsMember( CSteamID steamID ) = 0;
 
 	// chat message iteration
 	// returns the number of bytes in the message, filling pvData with as many of those bytes as possible
@@ -114,13 +134,30 @@ public:
 	virtual const char *GetClanName( CSteamID steamID ) = 0;
 	virtual const char *GetClanTag( CSteamID steamID ) = 0;
 
-	virtual bool GetFriendActivityCounts( int *a, int *b) = 0;
+	virtual bool GetFriendActivityCounts( int *pnOnline, int *pnInGame, bool bExcludeTaggedFriends ) = 0;
 	virtual bool GetClanActivityCounts( CSteamID steamID, int *pnOnline, int *pnInGame, int *pnChatting ) = 0;
+
+	virtual SteamAPICall_t DownloadClanActivityCounts( CSteamID groupIDs[], int nIds ) = 0;
+	virtual bool GetFriendsGroupActivityCounts( int16 iGroupID, int *pnOnline, int *pnInGame ) = 0;
 
 	virtual bool IsClanPublic( CSteamID steamID ) = 0;
 	virtual bool IsClanLarge( CSteamID steamID ) = 0;
 
 	virtual void SubscribeToPersonaStateFeed( CSteamID, bool ) = 0;
+
+	virtual SteamAPICall_t JoinClanChatRoom( CSteamID groupID ) = 0;
+	virtual bool LeaveClanChatRoom( CSteamID groupID ) = 0;
+	virtual int GetClanChatMemberCount( CSteamID groupID ) = 0;
+	virtual CSteamID GetChatMemberByIndex( CSteamID groupID, int iIndex ) = 0;
+	virtual bool SendClanChatMessage( CSteamID groupID, const char *cszMessage ) = 0;
+	virtual int GetClanChatMessage( CSteamID groupID, int iChatID, void *pvData, int cubData, EChatEntryType *peChatEntryType, CSteamID *pSteamIDChatter ) = 0;
+	virtual bool IsClanChatAdmin( CSteamID groupID, CSteamID userID ) = 0;
+	virtual bool IsClanChatWindowOpenInSteam( CSteamID groupID ) = 0;
+	virtual bool OpenClanChatWindowInSteam( CSteamID groupID ) = 0;
+	virtual bool CloseClanChatWindowInSteam( CSteamID groupID ) = 0;
+	virtual bool SetListenForFriendsMessages( bool bListen ) = 0;
+	virtual bool ReplyToFriendMessage( CSteamID friendID, const char *cszMessage ) = 0;
+	virtual int GetFriendMessage( CSteamID friendID, int iChatID, void *pvData, int cubData, EChatEntryType *peChatEntryType ) = 0;
 
 	virtual bool InviteFriendToClan( CSteamID steamIDfriend, CSteamID steamIDclan ) = 0;
 	virtual bool AcknowledgeInviteToClan( CSteamID steamID, bool bAcceptOrDenyClanInvite ) = 0;
@@ -136,13 +173,13 @@ public:
 	virtual RTime32 GetFriendCoplayTime( CSteamID steamID ) = 0;
 	virtual AppId_t GetFriendCoplayGame( CSteamID steamID ) = 0;
 
-	virtual bool SetRichPresence( const char *szKey, const char *szValue ) = 0;
-	virtual void ClearRichPresence() = 0;
-	virtual const char* GetFriendRichPresence( CSteamID steamIDFriend, const char *szKey ) = 0;
-	virtual int32 GetFriendRichPresenceKeyCount( CSteamID steamIDFriend ) = 0;
-	virtual const char* GetFriendRichPresenceKeyByIndex( CSteamID steamIDFriend, int32 iIndex ) = 0;
+	virtual bool SetRichPresence( AppId_t nAppId, const char *szKey, const char *szValue ) = 0;
+	virtual void ClearRichPresence( AppId_t nAppId ) = 0;
+	virtual const char* GetFriendRichPresence( AppId_t nAppId, CSteamID steamIDFriend, const char *szKey ) = 0;
+	virtual int32 GetFriendRichPresenceKeyCount( AppId_t nAppId, CSteamID steamIDFriend ) = 0;
+	virtual const char* GetFriendRichPresenceKeyByIndex( AppId_t nAppId, CSteamID steamIDFriend, int32 iIndex ) = 0;
 
-	virtual void RequestFriendRichPresence( CSteamID steamID ) = 0;
+	virtual void RequestFriendRichPresence( AppId_t nAppId, CSteamID steamID ) = 0;
 
 	virtual bool JoinChatRoom( CSteamID steamID ) = 0;
 	virtual void LeaveChatRoom( CSteamID steamID ) = 0;
@@ -169,7 +206,7 @@ public:
 	virtual bool GetChatRoomPermissions( CSteamID steamIDchat, uint32 *prgfChatRoomPermissions ) = 0;
 
 	virtual bool SetChatRoomModerated( CSteamID steamIDchat, bool bModerated ) = 0;
-	virtual bool ChatRoomModerated( CSteamID steamIDChat ) = 0;
+	virtual bool BChatRoomModerated( CSteamID steamIDChat ) = 0;
 
 	virtual bool NotifyChatRoomDlgsOfUIChange( CSteamID steamIDchat, bool bShowAvatars, bool bBeepOnNewMsg, bool bShowSteamIDs, bool bShowTimestampOnNewMsg ) = 0;
 
@@ -180,14 +217,9 @@ public:
 
 	virtual const char *GetChatRoomName( CSteamID steamIDchat ) = 0;
 
-	virtual bool GetChatRoomMemberDetails( CSteamID steamIDchat, CSteamID steamIDuser, uint32* pChatMemberDetails, uint32* pChatMemberDetailsLocal ) = 0;
+	virtual bool BGetChatRoomMemberDetails( CSteamID steamIDchat, CSteamID steamIDuser, uint32* pChatMemberDetails, uint32* pChatMemberDetailsLocal ) = 0;
 
 	virtual void CreateChatRoom( EChatRoomType eType, uint64 ulGameID, const char *pchName, ELobbyType eLobbyType, CSteamID steamIDClan, CSteamID steamIDFriendChat, CSteamID steamIDInvited, uint32 chatPermissionOfficer, uint32 chatPermissionMember, uint32 chatPermissionAll ) = 0;
-
-	virtual const char *GetChatRoomMetadata( CSteamID steamIDchat, CSteamID steamIDuser, const char *pchKey ) = 0;
-	virtual bool SetChatRoomMetadata( CSteamID steamIDChat, CSteamID steamIDMember, const char *pchKey, const char *pchValue ) = 0;
-
-	virtual bool SetChatRoomPermissions( CSteamID steamIDchat, CSteamID steamIDmemeber, uint32 permissions, bool bMakeOwner ) = 0;
 
 	virtual void VoiceCall( CSteamID steamIDlocal, CSteamID steamIDremote ) = 0;
 	virtual void VoiceHangUp( HVoiceCall hVoiceCall ) = 0;
@@ -200,8 +232,8 @@ public:
 	virtual void VoiceAnswer( HVoiceCall hVoiceCall ) = 0;
 
 	virtual void VoicePutOnHold( HVoiceCall HVoiceCall, bool bOnLocalHold ) = 0;
-	virtual bool VoiceIsLocalOnHold( HVoiceCall hVoiceCall ) = 0;
-	virtual bool VoiceIsRemoteOnHold( HVoiceCall hVoiceCall ) = 0;
+	virtual bool BVoiceIsLocalOnHold( HVoiceCall hVoiceCall ) = 0;
+	virtual bool BVoiceIsRemoteOnHold( HVoiceCall hVoiceCall ) = 0;
 
 	virtual void SetDoNotDisturb( bool bDoNotDisturb ) = 0;
 
@@ -241,8 +273,8 @@ public:
 	virtual float TimeSinceLastVoiceDataReceived( HVoiceCall hVoiceCall ) = 0;
 	virtual float TimeSinceLastVoiceDataSend( HVoiceCall hVoiceCall ) = 0;
 
-	virtual bool CanSend( HVoiceCall hVoiceCall ) = 0;
-	virtual bool CanReceive( HVoiceCall hVoiceCall ) = 0;
+	virtual bool BCanSend( HVoiceCall hVoiceCall ) = 0;
+	virtual bool BCanReceive( HVoiceCall hVoiceCall ) = 0;
 
 	virtual float GetEstimatedBitsPerSecond( HVoiceCall hVoiceCall, bool bIncoming ) = 0;
 	virtual float GetPeakSample( HVoiceCall hVoiceCall, bool bIncoming ) = 0;
@@ -262,9 +294,9 @@ public:
 	virtual CSteamID GetChatRoomVoiceUsedSlot( CSteamID steamID, int iSlot ) = 0;
 	virtual EChatRoomVoiceStatus GetChatRoomVoiceStatus( CSteamID steamIDchat, CSteamID steamIDuser ) = 0;
 
-	virtual bool ChatRoomHasAvailableVoiceSlots( CSteamID steamID ) = 0;
+	virtual bool BChatRoomHasAvailableVoiceSlots( CSteamID steamID ) = 0;
 
-	virtual bool IsChatRoomVoiceSpeaking( CSteamID steamIDchat, CSteamID steamIDuser ) = 0;
+	virtual bool BIsChatRoomVoiceSpeaking( CSteamID steamIDchat, CSteamID steamIDuser ) = 0;
 
 	virtual float GetChatRoomPeakSample( CSteamID steamIDchat, CSteamID steamIDuser, bool bIncoming ) = 0;
 
@@ -317,13 +349,17 @@ public:
 	virtual SteamAPICall_t RequestFriendProfileInfo( CSteamID friendID ) = 0;
 	virtual const char* GetFriendProfileInfo( CSteamID friendID, const char* szKey ) = 0;
 
-	virtual bool InviteUserToGame( CSteamID steamID, const char *szUnk ) = 0;
+	virtual bool InviteUserToGame( CSteamID steamID, const char *pchConnectString ) = 0;
 
 	virtual int GetOnlineConsoleFriendCount() = 0;
 
 	virtual SteamAPICall_t RequestTrade( CSteamID steamID ) = 0;
 	virtual void TradeResponse( unsigned int, bool ) = 0;
 	virtual void CancelTradeRequest( CSteamID steamID ) = 0;
+	
+	virtual bool HideFriend( CSteamID friendID, bool bHide ) = 0;
+	virtual const char * GetFriendFacebookName( CSteamID friendID ) = 0;
+	virtual uint64 GetFriendFacebookID( CSteamID friendID ) = 0;
 };
 
 #endif // ICLIENTFRIENDS_H

@@ -14,42 +14,31 @@
 //
 //=============================================================================
 
-#ifndef MATCHMAKINGKEYVALUEPAIR_H
-#define MATCHMAKINGKEYVALUEPAIR_H
+#ifndef ISTEAMSCREENSHOTS001_H
+#define ISTEAMSCREENSHOTS001_H
 #ifdef _WIN32
 #pragma once
 #endif
 
-#ifndef CLANG
-#include <stdio.h>
-#include <string.h>
-#endif
 
-#ifdef _WIN32
-	#pragma warning(push) 
-	#pragma warning(disable: 4996) 
-#endif
+#include "SteamTypes.h"
+#include "ScreenshotsCommon.h"
 
-struct MatchMakingKeyValuePair_t
+
+abstract_class ISteamScreenshots001
 {
-	MatchMakingKeyValuePair_t() { m_szKey[0] = m_szValue[0] = 0; }
-	
-#ifndef CLANG
-	MatchMakingKeyValuePair_t( const char *pchKey, const char *pchValue )
-	{
-		strncpy( m_szKey, pchKey, sizeof(m_szKey) ); // this is a public header, use basic c library string funcs only!
-		m_szKey[ sizeof( m_szKey ) - 1 ] = '\0';
-		strncpy( m_szValue, pchValue, sizeof(m_szValue) );
-		m_szValue[ sizeof( m_szValue ) - 1 ] = '\0';
-	}
-#endif
 
-	char m_szKey[ 256 ];
-	char m_szValue[ 256 ];
+public:
+	virtual HScreenshot WriteScreenshot( const uint8 *pubRGBData, uint32 uRGBDataSize, int32 iWidth, int32 iHeight ) = 0;
+	virtual HScreenshot AddScreenshotToLibrary( const char* cszScreenshotPath, const char* cszThumbnailPath, int32 iWidth, int32 iHeight ) = 0;
+
+	virtual void TriggerScreenshot() = 0;
+	virtual void HookScreenshots( bool ) = 0;
+
+	virtual bool SetLocation( HScreenshot hScreenshot, const char * cszLocation ) = 0;
+	virtual bool TagUser( HScreenshot hScreenshot, CSteamID steamIDUser ) = 0;
+
 };
 
-#ifdef _WIN32
-	#pragma warning(pop) 
-#endif
 
-#endif // MATCHMAKINGKEYVALUEPAIR_H
+#endif // ISTEAMSCREENSHOTS001_H

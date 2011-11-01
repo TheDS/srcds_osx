@@ -94,7 +94,7 @@ bool SetSteamAppUser()
 	if (!user)
 	{
 		printf("Failed to connect to steam client global user!\n");
-		clientEngine->ReleaseSteamPipe(pipe);
+		clientEngine->BReleaseSteamPipe(pipe);
 		dlclose(steamclient);
 		return false;
 	}
@@ -104,7 +104,7 @@ bool SetSteamAppUser()
 	{
 		printf("Failed to get steam client user interface!\n");
 		clientEngine->ReleaseUser(pipe, user);
-		clientEngine->ReleaseSteamPipe(pipe);
+		clientEngine->BReleaseSteamPipe(pipe);
 		dlclose(steamclient);
 		return false;
 	}
@@ -117,7 +117,7 @@ bool SetSteamAppUser()
 	{
 		printf("Failed to get account name of current steam user!\n");
 		clientEngine->ReleaseUser(pipe, user);
-		clientEngine->ReleaseSteamPipe(pipe);
+		clientEngine->BReleaseSteamPipe(pipe);
 		dlclose(steamclient);
 		return false;
 	}
@@ -126,7 +126,7 @@ bool SetSteamAppUser()
 	setenv("SteamAppUser", account, 1);
 
 	clientEngine->ReleaseUser(pipe, user);
-	clientEngine->ReleaseSteamPipe(pipe);
+	clientEngine->BReleaseSteamPipe(pipe);
 	dlclose(steamclient);
 
 	return true;

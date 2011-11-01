@@ -41,12 +41,15 @@ typedef enum ECurrencyCode
 // Flags for licenses - BITS
 typedef enum ELicenseFlags
 {
+	k_ELicenseFlagNone = 0,
 	k_ELicenseFlagRenew = 0x01,				// Renew this license next period
 	k_ELicenseFlagRenewalFailed = 0x02,		// Auto-renew failed
 	k_ELicenseFlagPending = 0x04,			// Purchase or renewal is pending
 	k_ELicenseFlagExpired = 0x08,			// Regular expiration (no renewal attempted)
 	k_ELicenseFlagCancelledByUser = 0x10,	// Cancelled by the user
 	k_ELicenseFlagCancelledByAdmin = 0x20,	// Cancelled by customer support
+	k_ELicenseFlagLowViolence = 0x40,
+	k_ELicenseFlagImportedFromSteam2 = 0x80,
 } ELicenseFlags;
 
 // Payment methods for purchases - BIT FLAGS so can be used to indicate
@@ -128,6 +131,16 @@ typedef enum ECreditCardType
 	k_ECreditCardTypeJCB = 6,
 } ECreditCardType;
 
+enum ELicenseType
+{
+	k_ENoLicense = 0,
+	k_ESinglePurchase = 1,
+	k_ESinglePurchaseLimitedUse = 2,
+	k_ERecurringCharge = 3,
+	k_ERecurringChargeLimitedUse = 4,
+	k_ERecurringChargeLimitedUseWithOverages = 5,
+};
+
 
 #pragma pack( push, 8 )
 //-----------------------------------------------------------------------------
@@ -150,6 +163,16 @@ struct PurchaseMsg_t
 
 		uint32 m_bSuccess;
 		int32 m_EPurchaseResultDetail;			// Detailed result information
+};
+
+// Sent in response to PurchaseWithActivationCode
+struct PurchaseResponse_t
+{
+		enum { k_iCallback = k_iSteamBillingCallbacks + 4 };
+		
+		int32 m_EPurchaseStatus;
+		int32 m_EPurchaseResultDetail;
+		int32 m_iReceiptIndex;
 };
 #pragma pack( pop )
 

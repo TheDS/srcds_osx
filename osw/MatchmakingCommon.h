@@ -34,7 +34,7 @@
 #define STEAMMATCHMAKING_INTERFACE_VERSION_006 "SteamMatchMaking006"
 #define STEAMMATCHMAKING_INTERFACE_VERSION_007 "SteamMatchMaking007"
 #define STEAMMATCHMAKING_INTERFACE_VERSION_008 "SteamMatchMaking008"
-
+#define STEAMMATCHMAKING_INTERFACE_VERSION_009 "SteamMatchMaking009"
 
 
 
@@ -237,6 +237,15 @@ struct LobbyCreated_t
 
 	CSteamID m_ulSteamIDLobby;		// chat room, zero if failed
 };
+
+
+struct GMSQueryResult_t
+{
+	uint32 uServerIP;
+	uint32 uServerPort;
+	uint32 uAuthPlayers;
+};
+
 #pragma pack( pop )
 
 

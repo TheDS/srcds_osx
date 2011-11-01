@@ -14,8 +14,8 @@
 //
 //=============================================================================
 
-#ifndef ISTEAMCLIENT010_H
-#define ISTEAMCLIENT010_H
+#ifndef ISTEAMCLIENT012_H
+#define ISTEAMCLIENT012_H
 #ifdef _WIN32
 #pragma once
 #endif
@@ -33,7 +33,7 @@
 //			You'll only need to use these interfaces if you have a more complex versioning scheme,
 //			where you want to get different versions of the same interface in different dll's in your project.
 //-----------------------------------------------------------------------------
-abstract_class ISteamClient010
+abstract_class ISteamClient012
 {
 public:
 	// Creates a communication pipe to the Steam client
@@ -71,9 +71,6 @@ public:
 	// returns the ISteamMatchmaking interface
 	virtual ISteamMatchmaking *GetISteamMatchmaking( HSteamUser hSteamUser, HSteamPipe hSteamPipe, const char *pchVersion ) = 0;
 
-	// returns the ISteamMasterServerUpdater interface
-	virtual ISteamMasterServerUpdater *GetISteamMasterServerUpdater( HSteamUser hSteamUser, HSteamPipe hSteamPipe, const char *pchVersion ) = 0;
-
 	// returns the ISteamMatchmakingServers interface
 	virtual ISteamMatchmakingServers *GetISteamMatchmakingServers( HSteamUser hSteamUser, HSteamPipe hSteamPipe, const char *pchVersion ) = 0;
 
@@ -94,6 +91,8 @@ public:
 
 	// remote storage
 	virtual ISteamRemoteStorage *GetISteamRemoteStorage( HSteamUser hSteamuser, HSteamPipe hSteamPipe, const char *pchVersion ) = 0;
+
+	virtual ISteamScreenshots *GetISteamScreenshots( HSteamUser hSteamuser, HSteamPipe hSteamPipe, const char *pchVersion ) = 0;
 
 	// this needs to be called every frame to process matchmaking results
 	// redundant if you're already calling SteamAPI_RunCallbacks()
@@ -118,5 +117,5 @@ public:
 };
 
 
-#endif // ISTEAMCLIENT010_H
+#endif // ISTEAMCLIENT012_H
 
