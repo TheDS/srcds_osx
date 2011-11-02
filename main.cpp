@@ -278,6 +278,15 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+#if defined(ENGINE_OBV)
+	if (steam)
+	{
+		char appString[16];
+		mm_Format(appString, sizeof(appString), "%d", appid);
+		setenv("SteamAppId", appString, 1);
+	}
+#endif
+
 	/* 
 	 * Prevent problem where files can't be found when executable path contains spaces.
 	 * We need to put quotation marks around it if necessary.
