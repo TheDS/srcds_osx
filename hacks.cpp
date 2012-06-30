@@ -45,7 +45,7 @@ typedef struct task_dyld_info task_dyld_info_data_t;
 #endif
 
 static struct nlist dyld_syms[3];
-static struct nlist steamclient_syms[2];
+static struct nlist steamclient_syms[3];
 static struct nlist dedicated_syms[9];
 static struct nlist launcher_syms[3];
 static struct nlist engine_syms[2];
@@ -55,9 +55,12 @@ static struct nlist material_syms[2];
 static struct nlist tier0_syms[2];
 #endif
 
+unsigned int g_AppId = 0;
+
 void *g_Launcher = NULL;
 
 CDetour *detSysLoadModules = NULL;
+CDetour *detGetAppId = NULL;
 
 #if defined(ENGINE_L4D)
 CDetour *detLoadModule = NULL;
@@ -99,6 +102,7 @@ bool InitSymbolData(const char *steamPath)
 		
 		memset(steamclient_syms, 0, sizeof(steamclient_syms));
 		steamclient_syms[0].n_un.n_name = (char *)"__ZN14IClientUserMap14GetAccountNameEPcj";
+		steamclient_syms[1].n_un.n_name = (char *)"__ZN15IClientUtilsMap8GetAppIDEv";
 		
 		if (nlist(clientPath, steamclient_syms) != 0)
 		{
@@ -183,7 +187,7 @@ int SetLibraryPath(const char *path)
 	Gestalt(gestaltSystemVersionMajor, &osx_major);
 	Gestalt(gestaltSystemVersionMinor, &osx_minor);
 
-	if (osx_major == 10 && osx_minor >= 6 || osx_major > 10)
+	if ((osx_major == 10 && osx_minor >= 6) || osx_major > 10)
 	{
 		task_dyld_info_data_t dyld_info;
 		mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
@@ -293,6 +297,13 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 
 #endif // ENGINE_L4D
 
+#if defined(ENGINE_OBV)
+DETOUR_DECL_STATIC0(GetAppID, int)
+{
+	return g_AppId;
+}
+#endif
+
 /* int CSys::LoadModules(CDedicatedAppSystemGroup *) */
 DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 {
@@ -388,9 +399,9 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 		{"",						""}
 	};
 	AppSysGroup_AddSystems(appsys, sys_after);
-	
+
 	dlclose(engine);
-	
+
 	return ret;
 }
 
@@ -475,6 +486,13 @@ void RemoveDedicatedDetours()
 	{
 		detSysLoadModules->Destroy();
 	}
+
+#if defined(ENGINE_OBV)
+	if (detGetAppId)
+	{
+		detGetAppId->Destroy();
+	}
+#endif
 	
 #if defined(ENGINE_L4D)
 	if (detLoadModule)
@@ -483,6 +501,52 @@ void RemoveDedicatedDetours()
 	}
 #endif
 }
+
+#if defined(ENGINE_OBV)
+bool ForceSteamAppId(unsigned int appid)
+{
+	void *steamclient;
+	void *entryPoint;
+	void *getAppId;
+	Dl_info info;
+
+	steamclient = dlopen("steamclient.dylib", RTLD_LAZY);
+	if (!steamclient)
+	{
+		printf("Failed to load steamclient.dylib\n");
+		return false;
+	}
+
+	entryPoint = dlsym(steamclient, "CreateInterface");
+	if (!entryPoint)
+	{
+		printf("Failed to get steamclient.dylib entry point\n");
+		dlclose(steamclient);
+		return false;
+	}
+
+	if (!dladdr(entryPoint, &info) || !info.dli_fbase || !info.dli_fname)
+	{
+		printf("Failed to get base address of steamclient.dylib\n");
+		dlclose(steamclient);
+		return false;
+	}
+
+        getAppId = SymbolAddr<void *>(info.dli_fbase, steamclient_syms, 1);
+        detGetAppId = DETOUR_CREATE_STATIC(GetAppID, getAppId);
+
+        if (!detGetAppId)
+        {
+                printf("Failed to detour GetAppID function\n");
+		return false;
+        }
+
+	detGetAppId->EnableDetour();
+	g_AppId = appid;
+
+	return true;
+}
+#endif
 
 void *GetAccountNameFunc(const void *entryPoint)
 {

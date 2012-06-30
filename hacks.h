@@ -37,6 +37,13 @@ void RemoveDedicatedDetours();
 /* Get address of IClientUser::GetAccountName in steamclient */
 void *GetAccountNameFunc(const void *entryPoint);
 
+#if defined(ENGINE_OBV)
+
+/* Force specified app id to be reported by server */
+bool ForceSteamAppId(unsigned int appid);
+
+#endif
+
 #if defined(ENGINE_L4D)
 
 /* Get address of BuildCmdLine in tier0 */

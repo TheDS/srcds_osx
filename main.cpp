@@ -284,6 +284,10 @@ int main(int argc, char **argv)
 		char appString[16];
 		mm_Format(appString, sizeof(appString), "%d", appid);
 		setenv("SteamAppId", appString, 1);
+		if (!ForceSteamAppId(appid))
+		{
+			printf("Warning: Failed to force appid %d - clients may be unable to connect\n", appid);
+		}
 	}
 #endif
 
