@@ -35,8 +35,9 @@
 
 
 // Result codes to GSHandleClientDeny/Kick
-typedef enum EDenyReason
+enum EDenyReason
 {
+	k_EDenyInvalid = 0,
 	k_EDenyInvalidVersion = 1,
 	k_EDenyGeneric = 2,
 	k_EDenyNotLoggedOn = 3,
@@ -52,7 +53,7 @@ typedef enum EDenyReason
 	k_EDenySteamResponseTimedOut = 13,
 	k_EDenySteamValidationStalled = 14,
 	k_EDenySteamOwnerLeftGuestUser = 15,
-} EDenyReason;
+};
 
 
 #pragma pack( push, 8 )
@@ -86,9 +87,6 @@ struct GSClientKick_t
 	EDenyReason m_eDenyReason;
 };
 
-// NOTE: callback values 4 and 5 are skipped because they are used for old deprecated callbacks, 
-// do not reuse them here.
-
 // client has been denied to connect to this game server because of a Steam2 auth failure
 struct GSClientSteam2Deny_t
 {
@@ -98,14 +96,13 @@ struct GSClientSteam2Deny_t
 	ESteamError m_eSteamError;
 };
 
-
 // client has been accepted by Steam2 to connect to this game server
 struct GSClientSteam2Accept_t
 {
 	enum { k_iCallback = k_iSteamGameServerCallbacks + 5 };
 
 	uint32 m_UserID;
-	CSteamID m_SteamID;
+	uint64 m_SteamID;
 };
 
 // client achievement info
@@ -164,6 +161,26 @@ struct GSReputation_t
 	uint64	m_ulBannedGameID;	// The game ID the banned server is serving
 	uint32	m_unBanExpires;		// Time the ban expires, expressed in the Unix epoch (seconds since 1/1/1970)
 };
+
+// Sent as a reply to AssociateWithClan()
+struct AssociateWithClanResult_t
+{
+	enum { k_iCallback = k_iSteamGameServerCallbacks + 10 };
+
+	EResult	m_eResult;				// Result of the call;
+};
+
+// Sent as a reply to ComputeNewPlayerCompatibility()
+struct ComputeNewPlayerCompatibilityResult_t
+{
+	enum { k_iCallback = k_iSteamGameServerCallbacks + 11 };
+
+	EResult	m_eResult;				// Result of the call;
+	int m_cPlayersThatDontLikeCandidate;
+	int m_cPlayersThatCandidateDoesntLike;
+	int m_cClanPlayersThatDontLikeCandidate;
+};
+
 
 
 // received when the game server requests to be displayed as secure (VAC protected)

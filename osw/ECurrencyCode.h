@@ -14,24 +14,24 @@
 //
 //=============================================================================
 
-#ifndef EPERSONALQUESTION_H
-#define EPERSONALQUESTION_H
+#ifndef ECURRENCYCODE_H
+#define ECURRENCYCODE_H
 #ifdef _WIN32
 #pragma once
 #endif
 
-typedef enum EPersonalQuestion
+
+typedef enum ECurrencyCode
 {
-	// Never ever change these after initial release.
-	k_EPSMsgNameOfSchool = 0,			// Question: What is the name of your school?
-	k_EPSMsgFavoriteTeam = 1,			// Question: What is your favorite team?
-	k_EPSMsgMothersName = 2,			// Question: What is your mother's maiden name?
-	k_EPSMsgNameOfPet = 3,				// Question: What is the name of your pet?
-	k_EPSMsgChildhoodHero = 4,			// Question: Who was your childhood hero?
-	k_EPSMsgCityBornIn = 5,				// Question: What city were you born in?
+	k_ECurrencyCodeInvalid = 0,
+	k_ECurrencyCodeUSD = 1,
+	k_ECurrencyCodeGBP = 2,
+	k_ECurrencyCodeEUR = 3,
+	k_ECurrencyCodeCHF = 4,
+	k_ECurrencyCodeRUB = 5,
+	k_ECurrencyCodePLN = 6,
+	k_ECurrencyCodeBRL = 7,
+	k_ECurrencyCodeMax = 8,
+} ECurrencyCode;
 
-	k_EPSMaxPersonalQuestion,
-
-} EPersonalQuestion;
-
-#endif // EPERSONALQUESTION_H
+#endif // ECURRENCYCODE_H

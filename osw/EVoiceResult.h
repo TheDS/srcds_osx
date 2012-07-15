@@ -14,31 +14,24 @@
 //
 //=============================================================================
 
-#ifndef EACCOUNTTYPE_H
-#define EACCOUNTTYPE_H
+#ifndef EVOICERESULT_H
+#define EVOICERESULT_H
 #ifdef _WIN32
 #pragma once
 #endif
 
 
-// Steam account types
-typedef enum EAccountType
+// Error codes for use with the voice functions
+typedef enum EVoiceResult
 {
-	k_EAccountTypeInvalid = 0,			
-	k_EAccountTypeIndividual = 1,		// single user account
-	k_EAccountTypeMultiseat = 2,		// multiseat (e.g. cybercafe) account
-	k_EAccountTypeGameServer = 3,		// game server account
-	k_EAccountTypeAnonGameServer = 4,	// anonymous game server account
-	k_EAccountTypePending = 5,			// pending
-	k_EAccountTypeContentServer = 6,	// content server
-	k_EAccountTypeClan = 7,
-	k_EAccountTypeChat = 8,
-	k_EAccountTypeConsoleUser = 9,		// Fake SteamID for local PSN account on PS3 or Live account on 360, etc.
-	k_EAccountTypeAnonUser = 10,
+	k_EVoiceResultOK = 0,
+	k_EVoiceResultNotInitialized = 1,
+	k_EVoiceResultNotRecording = 2,
+	k_EVoiceResultNoData = 3,
+	k_EVoiceResultBufferTooSmall = 4,
+	k_EVoiceResultDataCorrupted = 5,
+	k_EVoiceResultRestricted = 6,
+	k_EVoiceResultUnsupportedCodec = 7,
+} EVoiceResult;
 
-	// Max of 16 items in this field
-	k_EAccountTypeMax
-} EAccountType;
-
-
-#endif // EACCOUNTTYPE_H
+#endif // EVOICERESULT_H

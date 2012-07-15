@@ -30,24 +30,25 @@
 
 typedef enum EDepotBuildStatus
 {
-	k_EDepotBuildStatusInvalid = -1,
-	k_EDepotBuildStatusFailed = 0,
+	k_EDepotBuildStatusInvalid = 0,
 	k_EDepotBuildStatusProcessingConfig = 1,
-	k_EDepotBuildStatusProcessingData = 2,
-	k_EDepotBuildStatusUploadingData = 3,
-	k_EDepotBuildStatusCompleted = 4,
+	k_EDepotBuildStatusBuildingFileList = 2,
+	k_EDepotBuildStatusProcessingData = 3,
+	k_EDepotBuildStatusUploadingData = 4,
+	k_EDepotBuildStatusCompleted = 5,
+	k_EDepotBuildStatusFailed = 6,
 }  EDepotBuildStatus;
 
 //-----------------------------------------------------------------------------
 // Purpose: Status of a given depot version, these are stored in the DB, don't renumber
 //-----------------------------------------------------------------------------
-typedef enum EStatusDepotVersion
+enum EStatusDepotVersion
 {
-	k_EStatusDepotVersionInvalid = 0,
-	k_EStatusDepotVersionCompleteDisabled = 1,
-	k_EStatusDepotVersionCompleteEnabledBeta = 2,
-	k_EStatusDepotVersionCompleteEnabledPublic = 3,
-} EStatusDepotVersion;
+	k_EStatusDepotVersionInvalid = 0,			
+	k_EStatusDepotVersionDisabled = 1,			// version was disabled, no manifest & content available
+	k_EStatusDepotVersionAvailable = 2,			// manifest & content is available, but not current
+	k_EStatusDepotVersionCurrent = 3,			// current depot version. The can be multiple, one for public and one for each beta key
+};
 
 
 typedef uint32 HDEPOTBUILD;
@@ -56,25 +57,25 @@ typedef uint32 HDEPOTBUILD;
 abstract_class IClientDepotBuilder
 {
 public:
-	virtual uint32 RegisterAppBuild( AppId_t nAppID, const char *cszDescription ) = 0;
+	virtual uint32 RegisterAppBuild( AppId_t nAppID, bool bLocalCSBuild, const char *cszDescription ) = 0;
 	virtual uint32 GetRegisteredBuildID( uint32 ) = 0;
 
-	virtual HDEPOTBUILD InitializeDepotBuildForConfigFile( const char *pchConfigFile ) = 0;
+	virtual HDEPOTBUILD InitializeDepotBuildForConfigFile( const char *pchConfigFile, const char *, const char * ) = 0;
 	
-	virtual bool StartBuild( HDEPOTBUILD hDepotBuild, bool, bool, const char * pchBetaKey, unsigned int ) = 0;
+	virtual bool StartBuild( HDEPOTBUILD hDepotBuild, uint32 uFlags, const char *cszChunksPath, const char*, uint32 ) = 0;
 
 	virtual bool BGetDepotBuildStatus( HDEPOTBUILD hDepotBuild, EDepotBuildStatus* pStatusOut, uint32* pPercentDone ) = 0;
 	virtual bool CloseDepotBuildHandle( HDEPOTBUILD hDepotBuild ) = 0;
 
-	virtual HDEPOTBUILD ReconstructDepotFromManifestAndChunks( const char *pchLocalManifestPath, const char *pchLocalChunkPath, const char *pchRestorePath ) = 0;
+	virtual HDEPOTBUILD ReconstructDepotFromManifestAndChunks( const char *pchLocalManifestPath, const char *pchLocalChunkPath, const char *pchRestorePath, uint32  ) = 0;
 
 	virtual bool BGetChunkCounts( HDEPOTBUILD hDepotBuild, uint32 *unTotalChunksInNewBuild, uint32 *unChunksAlsoInOldBuild ) = 0;
 
-	virtual bool GetManifestGIDs( HDEPOTBUILD hDepotBuild, uint64 *, uint64 * ) = 0;
+	virtual bool GetManifestGIDs( HDEPOTBUILD hDepotBuild, GID_t* pBaselineGID, GID_t* pNewGID, bool* ) = 0;
 
-	virtual uint32 RebaseAndBuildDepot( uint64, uint64 ) = 0;
+	virtual uint32 FinishAppBuild( uint32 uBuildID, uint32 nAppID, const char *cszBetaKey, bool bOnlyFinish, uint32 cNumSkipDepots ) = 0;
 
-	virtual uint32 SetAppBuildLive( uint32 /*uBuildID ?*/, uint32 /*nAppID ?*/, const char *pchBetaKey ) = 0;
+	virtual uint32 VerifyChunkStore( uint32, uint32, const char * ) = 0;
 };
 
 #endif // ICLIENTDEPOTBUILDER_H

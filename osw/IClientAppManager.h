@@ -23,76 +23,60 @@
 #include "SteamTypes.h"
 #include "AppsCommon.h"
 
-struct AppUpdateInfo_s
-{
-	RTime32 m_timeUpdateStart;
-	uint64 m_unBytesToDownload;
-	uint64 m_unBytesDownloaded;
-	uint64 m_unBytesToWrite;
-	uint64 m_unBytesWritten;
-};
 
-struct DownloadStats_s
-{
-#ifdef CLANG
-	uint8 hack; // this is required to get S4N2's Steam4Intermediate to display this POD, this field doesn't actually exist
-#endif
-};
-enum EAppDownloadPriority
-{
-};
-
-struct SHADigestWrapper_t
-{
-	uint32 A;
-	uint32 B;
-	uint32 C;
-	uint32 D;
-	uint32 E;
-};
 
 abstract_class UNSAFE_INTERFACE IClientAppManager
 {
 public:
-	virtual bool LaunchApp( AppId_t unAppID, uint32 uLaunchOption, const char *cszArgs ) = 0;
+	virtual EAppUpdateError InstallApp( AppId_t unAppID, bool ) = 0;
+	virtual EAppUpdateError ConvertFromSteam2( AppId_t unAppID, const char *cszPath ) = 0;
+	virtual EAppUpdateError UninstallApp( AppId_t unAppID, bool bComplete ) = 0;
+
+	virtual EAppUpdateError LaunchApp( AppId_t unAppID, uint32 uLaunchOption, const char *pszUserArgs ) = 0;
 	virtual bool ShutdownApp( AppId_t unAppID, bool bForce ) = 0;
 
 	virtual EAppState GetAppState( AppId_t unAppID ) = 0;
 
-	virtual bool InstallApp( AppId_t unAppID, bool ) = 0;
-	virtual uint64 GetAppSize( AppId_t unAppID ) = 0;
-	virtual uint32 GetAppDir( AppId_t unAppID, char *szBuffer, uint32 cubBuffer ) = 0;
-	virtual bool UninstallApp( AppId_t unAppID, bool bComplete ) = 0;
+	// /!\ IPC is broken for this function
+	virtual bool GetAppSizeOnDisk( AppId_t unAppID, uint64 *pullAppSize, uint64 *pullUnk ) = 0;
+	
+	virtual uint32 GetAppDir( AppId_t unAppID, char *pchPath, uint32 cbPath ) = 0;
+
+	virtual uint32 GetAppDependency( AppId_t unAppID ) = 0;
+	virtual uint32 GetDependentApps( AppId_t unAppID, AppId_t *punAppIDs, int32 cAppIDsMax ) = 0;
 
 	virtual uint32 GetUpdateInfo( AppId_t unAppID, AppUpdateInfo_s *pUpdateInfo ) = 0;
 
-	virtual bool SetContentLocked( AppId_t unAppID, bool bContentLocked ) = 0;
+	virtual bool SetContentLocked( AppId_t unAppID, bool bLockContent ) = 0;
 
 	virtual bool StartValidatingApp( AppId_t unAppID ) = 0;
 
-	virtual bool SetAppConfig( AppId_t unAppID, uint8 *pchBuffer, int cbBuffer, bool bUseSymbolsAsKeys ) = 0;
+	virtual bool SetAppConfig( AppId_t unAppID, uint8 *pchBuffer, int32 cbBuffer, bool bSharedKVSymbols ) = 0;
 
 	virtual bool BIsAppUpToDate( AppId_t unAppID ) = 0;
+	
+	virtual bool BCheckBetaPassword( AppId_t unAppID, const char *cszBetaKey, const char *cszBetaPassword ) = 0;
 
-	virtual bool SetDownloadingEnabled( bool bEnabled ) = 0;
+	virtual bool SetDownloadingEnabled( bool bState ) = 0;
 	virtual bool BIsDownloadingEnabled() = 0;
 
-	virtual bool GetDownloadStats( DownloadStats_s *pStats ) = 0;
+	virtual bool GetDownloadStats( DownloadStats_s *pDownloadStats ) = 0;
 
 	virtual AppId_t GetDownloadingAppID() = 0;
-	virtual bool ChangeAppPriority( AppId_t unAppID, EAppDownloadPriority eDownloadPriority ) = 0;
+	virtual bool ChangeAppPriority( AppId_t unAppID, EAppDownloadPriority ePriority ) = 0;
 
 	virtual bool AddSteam2Update( AppId_t unAppID ) = 0;
 	virtual bool RemoveSteam2Update( AppId_t unAppID ) = 0;
 	virtual bool StalledSteam2Update( AppId_t unAppID ) = 0;
 
-	virtual bool IsUsingLocalContentServer() = 0;
+	virtual bool BHasLocalContentServer() = 0;
 
-	virtual bool BackupApp( AppId_t unAppID, uint64 ullMaxFileSize, const char *cszBackupPath ) = 0;
-	virtual bool CancelBackup( AppId_t unAppID ) = 0;
-	virtual bool RestoreApp( AppId_t unAppID, char const* cszBackupPath ) = 0;
-	virtual bool BNeedsFile( AppId_t unAppID, char const* cszFilePath, uint64 ullFileSize, uint32 uUnk ) = 0;
-	virtual bool BAddFileOnDisk( AppId_t unAppID, char const* cszFilePath, uint64 ullFileSize, uint32 uUnk, SHADigestWrapper_t ubSha1 ) = 0;
+	virtual bool BuildBackup( AppId_t unAppID, uint64 ullMaxFileSize, const char *cszBackupPath ) = 0;
+	virtual bool BuildInstaller( const char *cszProjectFile, const char *cszBackupPath, const char * ) = 0;
+	virtual bool CancelBackup() = 0;
+	virtual EAppUpdateError RestoreApp( AppId_t unAppID, char const *cszBackupPath ) = 0;
+	virtual bool BNeedsFile( AppId_t unAppID, char const *cszFilePath, uint64 ullFileSize, uint32 uUnk ) = 0;
+	virtual bool BAddFileOnDisk( AppId_t unAppID, char const *cszFilePath, uint64 ullFileSize, uint32 uUnk, SHADigestWrapper_t ubSha1 ) = 0;
 	virtual uint64 FinishAddingFiles( AppId_t unAppID ) = 0;
 };
 

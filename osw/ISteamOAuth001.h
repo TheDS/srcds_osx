@@ -14,22 +14,24 @@
 //
 //=============================================================================
 
-#ifndef ENOTIFICATIONPOSITION_H
-#define ENOTIFICATIONPOSITION_H
+#ifndef ISTEAMOAUTH001_H
+#define ISTEAMOAUTH001_H
 #ifdef _WIN32
 #pragma once
 #endif
 
-//-----------------------------------------------------------------------------
-// Purpose: Possible positions to tell the overlay to show notifications in
-//-----------------------------------------------------------------------------
-typedef enum ENotificationPosition
+#include "SteamTypes.h"
+#include "OAuthCommon.h"
+
+
+abstract_class ISteamOAuth001
 {
-	k_EPositionTopLeft = 0,
-	k_EPositionTopRight = 1,
-	k_EPositionBottomLeft = 2,
-	k_EPositionBottomRight = 3,
-} ENotificationPosition;
+public:
+	virtual SteamAPICall_t RequestOAuthTokenForApp( const char *cszOAuthScope ) = 0;
+	virtual bool GetOAuthTokenForApp( void *pubBuffer, int32 cubBuffer, uint32 *puTokenSize ) = 0;
+	virtual void InvalidateOAuthTokenForApp() = 0;
+};
 
 
-#endif // ENOTIFICATIONPOSITION_H
+#endif // ISTEAMOAUTH001_H
+

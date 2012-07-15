@@ -22,12 +22,34 @@
 
 #include "SteamTypes.h"
 
-#ifndef CLANG
-#include <stdio.h>
-#ifndef NO_CSTEAMID_STL
-#include <iostream>
-#endif //NO_CSTEAMID_STL
+#ifdef _S4N_
+	#define sprintf(...)
+#else
+	#include <stdio.h>
+	#ifndef NO_CSTEAMID_STL
+		#include <iostream>
+	#endif //NO_CSTEAMID_STL
 #endif
+
+
+
+enum EAccountType
+{
+	k_EAccountTypeInvalid = 0,			
+	k_EAccountTypeIndividual = 1,		// single user account
+	k_EAccountTypeMultiseat = 2,		// multiseat (e.g. cybercafe) account
+	k_EAccountTypeGameServer = 3,		// game server account
+	k_EAccountTypeAnonGameServer = 4,	// anonymous game server account
+	k_EAccountTypePending = 5,			// pending
+	k_EAccountTypeContentServer = 6,	// content server
+	k_EAccountTypeClan = 7,
+	k_EAccountTypeChat = 8,
+	k_EAccountTypeConsoleUser = 9,		// Fake SteamID for local PSN account on PS3 or Live account on 360, etc.
+	k_EAccountTypeAnonUser = 10,
+
+	// Max of 16 items in this field
+	k_EAccountTypeMax
+};
 
 #pragma pack( push, 1 )
 
@@ -70,7 +92,7 @@ public:
 	CSteamID( uint32 unAccountID, unsigned int unAccountInstance, EUniverse eUniverse, EAccountType eAccountType )
 	{
 #if defined(_SERVER) && defined(Assert)
-		Assert( ! ( ( k_EAccountTypeIndividual == eAccountType ) && ( unAccountInstance > k_unSteamUserConsoleInstance ) ) );	// enforce that for individual accounts, instance is always 1
+		Assert( ! ( ( k_EAccountTypeIndividual == eAccountType ) && ( unAccountInstance > k_unSteamUserWebInstance ) ) );	// enforce that for individual accounts, instance is always 1
 #endif // _SERVER
 		InstancedSet( unAccountID, unAccountInstance, eUniverse, eAccountType );
 	}
@@ -324,22 +346,36 @@ public:
 	void SetEUniverse( EUniverse eUniverse )	{ m_steamid.m_comp.m_EUniverse = eUniverse; }
 	bool IsValid() const;
 
-#ifndef CLANG
 	// this set of functions is hidden, will be moved out of class
 	explicit CSteamID( const char *pchSteamID, EUniverse eDefaultUniverse = k_EUniverseInvalid );
+
+#ifdef _MSC_VER
+	#pragma warning(push) 
+	#pragma warning(disable: 4996) 
+#endif
+
 	const char * Render() const				// renders this steam ID to string
 	{
-		static char szSteamID[64];
+		const int k_cBufLen = 30;
+		const int k_cBufs = 4;
+		char* pchBuf;
+
+		static char rgchBuf[k_cBufs][k_cBufLen];
+		static int nBuf = 0;
+
+		pchBuf = rgchBuf[nBuf++];
+		nBuf %= k_cBufs;
+
 		switch(m_steamid.m_comp.m_EAccountType)
 		{
 		case k_EAccountTypeInvalid:
 		case k_EAccountTypeIndividual:
-			sprintf_s(szSteamID, sizeof(szSteamID), "STEAM_0:%u:%u", (m_steamid.m_comp.m_unAccountID % 2) ? 1 : 0, (int32)m_steamid.m_comp.m_unAccountID/2);
+			sprintf(pchBuf, "STEAM_0:%u:%u", (m_steamid.m_comp.m_unAccountID % 2) ? 1 : 0, (uint32)m_steamid.m_comp.m_unAccountID / 2);
 			break;
 		default:
-			sprintf_s(szSteamID, sizeof(szSteamID), "%llu", ConvertToUint64());
+			sprintf(pchBuf, "%llu", ConvertToUint64());
 		}
-		return szSteamID;
+		return pchBuf;
 	}
 	static const char * Render( uint64 ulSteamID )	// static method to render a uint64 representation of a steam ID to a string
 	{
@@ -361,45 +397,45 @@ public:
 		switch (m_steamid.m_comp.m_EAccountType)
 		{
 		case k_EAccountTypeAnonGameServer:
-			sprintf_s(pchBuf, k_cBufLen, "[A:%u:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID, m_steamid.m_comp.m_unAccountInstance);
+			sprintf(pchBuf, "[A:%u:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID, m_steamid.m_comp.m_unAccountInstance);
 			break;
 		case k_EAccountTypeGameServer:
-			sprintf_s(pchBuf, k_cBufLen, "[G:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
+			sprintf(pchBuf, "[G:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
 			break;
 		case k_EAccountTypeMultiseat:
-			sprintf_s(pchBuf, k_cBufLen, "[M:%u:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID, m_steamid.m_comp.m_unAccountInstance);
+			sprintf(pchBuf, "[M:%u:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID, m_steamid.m_comp.m_unAccountInstance);
 			break;
 		case k_EAccountTypePending:
-			sprintf_s(pchBuf, k_cBufLen, "[P:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
+			sprintf(pchBuf, "[P:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
 			break;
 		case k_EAccountTypeContentServer:
-			sprintf_s(pchBuf, k_cBufLen, "[C:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
+			sprintf(pchBuf, "[C:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
 			break;
 		case k_EAccountTypeClan:
-			sprintf_s(pchBuf, k_cBufLen, "[g:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
+			sprintf(pchBuf, "[g:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
 			break;
 		case k_EAccountTypeChat:
 			switch (m_steamid.m_comp.m_unAccountInstance & ~k_EChatAccountInstanceMask)
 			{
 			case k_EChatInstanceFlagClan:
-				sprintf_s(pchBuf, k_cBufLen, "[c:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
+				sprintf(pchBuf, "[c:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
 				break;
 			case k_EChatInstanceFlagLobby:
-				sprintf_s(pchBuf, k_cBufLen, "[L:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
+				sprintf(pchBuf, "[L:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
 				break;
 			default:
-				sprintf_s(pchBuf, k_cBufLen, "[T:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
+				sprintf(pchBuf, "[T:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
 				break;
 			}
 			break;
 		case k_EAccountTypeInvalid:
-			sprintf_s(pchBuf, k_cBufLen, "[I:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
+			sprintf(pchBuf, "[I:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
 			break;
 		case k_EAccountTypeIndividual:
-			sprintf_s(pchBuf, k_cBufLen, "[U:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
+			sprintf(pchBuf, "[U:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
 			break;
 		default:
-			sprintf_s(pchBuf, k_cBufLen, "[i:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
+			sprintf(pchBuf, "[i:%u:%u]", m_steamid.m_comp.m_EUniverse, m_steamid.m_comp.m_unAccountID);
 			break;
 		}
 
@@ -411,6 +447,10 @@ public:
 		return CSteamID(ulSteamID).SteamRender();
 	}
 
+#ifdef _MSC_VER
+	#pragma warning(pop) 
+#endif
+
 	void SetFromString( const char *pchSteamID, EUniverse eDefaultUniverse );
 	bool SetFromSteam2String( const char *pchSteam2ID, EUniverse eUniverse );
 
@@ -418,7 +458,6 @@ public:
 	inline bool operator!=( const CSteamID &val ) const { return !operator==( val ); }
 	inline bool operator<( const CSteamID &val ) const { return m_steamid.m_unAll64Bits < val.m_steamid.m_unAll64Bits; }
 	inline bool operator>( const CSteamID &val ) const { return m_steamid.m_unAll64Bits > val.m_steamid.m_unAll64Bits; }
-#endif
 
 	// DEBUG function
 	bool BValidExternalSteamID() const;
@@ -465,13 +504,13 @@ inline bool CSteamID::IsValid() const
 {
 	if ( m_steamid.m_comp.m_EAccountType <= k_EAccountTypeInvalid || m_steamid.m_comp.m_EAccountType >= k_EAccountTypeMax )
 		return false;
-
+	
 	if ( m_steamid.m_comp.m_EUniverse <= k_EUniverseInvalid || m_steamid.m_comp.m_EUniverse >= k_EUniverseMax )
 		return false;
 
 	if ( m_steamid.m_comp.m_EAccountType == k_EAccountTypeIndividual )
 	{
-		if ( m_steamid.m_comp.m_unAccountID == 0 || m_steamid.m_comp.m_unAccountInstance > k_unSteamUserConsoleInstance )
+		if ( m_steamid.m_comp.m_unAccountID == 0 || m_steamid.m_comp.m_unAccountInstance > k_unSteamUserWebInstance )
 			return false;
 	}
 
@@ -479,6 +518,13 @@ inline bool CSteamID::IsValid() const
 	{
 		if ( m_steamid.m_comp.m_unAccountID == 0 || m_steamid.m_comp.m_unAccountInstance != 0 )
 			return false;
+	}
+
+	if ( m_steamid.m_comp.m_EAccountType == k_EAccountTypeGameServer )
+	{
+		if ( m_steamid.m_comp.m_unAccountID == 0 )
+			return false;
+		// Any limit on instances?  We use them for local users and bots
 	}
 	return true;
 }
@@ -502,16 +548,47 @@ inline bool CSteamID::IsValid() const
 #ifdef STEAM
 // Returns the matching chat steamID, with the default instance of 0
 // If the steamID passed in is already of type k_EAccountTypeChat it will be returned with the same instance
-CSteamID ChatIDFromSteamID( const CSteamID &steamID );
+inline CSteamID ChatIDFromSteamID( const CSteamID &steamID )
+{
+	if(steamID.GetEAccountType() == k_EAccountTypeClan)
+	{
+		return CSteamID(steamID.GetAccountID(), k_EChatInstanceFlagClan, steamID.GetEUniverse(), k_EAccountTypeChat);
+	}
+	else if(steamID.GetEAccountType() == k_EAccountTypeChat)
+	{
+		return steamID;
+	}
+	else
+	{
+		return k_steamIDNil;
+	}
+}
+
 // Returns the matching clan steamID, with the default instance of 0
 // If the steamID passed in is already of type k_EAccountTypeClan it will be returned with the same instance
-CSteamID ClanIDFromSteamID( const CSteamID &steamID );
+inline CSteamID ClanIDFromSteamID( const CSteamID &steamID )
+{
+	if(steamID.GetEAccountType() == k_EAccountTypeChat && steamID.GetUnAccountInstance() & k_EChatInstanceFlagClan)
+	{
+		return CSteamID(steamID.GetAccountID(), 0, steamID.GetEUniverse(), k_EAccountTypeClan);
+	}
+	else if(steamID.GetEAccountType() == k_EAccountTypeClan)
+	{
+		return steamID;
+	}
+	else
+	{
+		return k_steamIDNil;
+	}
+}
+
 // Asserts steamID type before conversion
 CSteamID ChatIDFromClanID( const CSteamID &steamIDClan );
 // Asserts steamID type before conversion
 CSteamID ClanIDFromChatID( const CSteamID &steamIDChat );
 
 #endif // _STEAM
+
 
 #pragma pack( pop )
 

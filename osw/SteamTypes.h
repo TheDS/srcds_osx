@@ -20,133 +20,294 @@
 #pragma once
 #endif
 
-#ifdef CLANG
-	#define S_API extern "C"
-	
-	typedef unsigned int errno_t;
-	typedef unsigned int size_t;
-	typedef unsigned char byte;
-	
-	#define NULL 0
-	
-#elif _WIN32
-	
-	#include <sdkddkver.h>
-	#include <windows.h>
+// Compiler checks
 
-	#undef SendMessage // for ISteamGameCoordinator001 to work right..
-	#undef CreateProcess // for ISteam2Bridge
+#if defined(_MSC_VER)
+
+	#if _MSC_VER < 1400
+		#error "OpenSteamworks requires MSVC 2005 or better"
+	#endif
+	
+#elif defined(__GNUC__)
+
+	#if defined(_WIN32)
+		#if (__GNUC__ < 4 || __GNUC_MINOR__ < 6) && !defined(_S4N_)
+			#error "OpenSteamworks requires GCC 4.6 or better on windows"
+		#endif
+	#elif defined(__linux__) || defined(__APPLE_CC__)
+		#if __GNUC__ < 4
+			#error "OpenSteamworks requires GCC 4.X (4.2 or 4.4 have been tested)"
+		#endif
+	#else
+		#error "Unsupported OS: OpenSteamworks can only be used with Windows, Mac OS X or Linux"
+	#endif
+	
+#else
+	#error "Unsupported compiler: OpenSteamworks can only be used with MSVC, GCC or CLANG"
+#endif
+
+
+
+#if defined(_WIN32)
+	#ifndef _S4N_
+		#if defined(_MSC_VER) && _MSC_VER > 1400
+			#include <sdkddkver.h>
+		#else
+			#if !defined(_WIN32_WINNT)
+				#define _WIN32_WINNT 0x0502
+			#endif
+			#if !defined(WINVER)
+				#define WINVER _WIN32_WINNT
+			#endif
+		#endif
+			
+		#include <windows.h>
+
+		#undef SendMessage		// for ISteamGameCoordinator001 to work right..
+		#undef CreateProcess	// for ISteam2Bridge
+	#endif
 
 	#if defined( STEAM_API_EXPORTS )
-	#define S_API extern "C" __declspec( dllexport ) 
+		#define S_API extern "C" __declspec( dllexport ) 
 	#else
-	#define S_API extern "C" __declspec( dllimport ) 
+		#define S_API extern "C" __declspec( dllimport ) 
 	#endif // STEAM_API_EXPORTS
 #else
-
 	#include <dlfcn.h> // dlopen,dlclose, et al
 	#include <unistd.h>
 	#include <arpa/inet.h>
 	#include <string.h>
 
-	#define HMODULE void *
-	#define GetProcAddress dlsym
-
-
 	#define S_API extern "C"
+#endif
 
-	#ifndef __cdecl
-		#define __cdecl __attribute__((__cdecl__))
-	#endif
 
-	// mac doesn't have errno_t ??
+#ifdef __GNUC__
 	typedef unsigned int errno_t;
-	typedef unsigned char byte;
-
-#endif
-
-// this is an MSVC project.. but for the same of supporting other compilers we have to jump through hoops
-#if !defined(_MSC_VER) && !defined(CLANG)
-	#define sprintf_s snprintf
-	inline void _strcpy_s(char *dest, size_t len, const char *source) { strncpy(dest, source, len); };
-#else
-	#define _strcpy_s strcpy_s
-#endif
-
-
-#define STEAM_CALL __cdecl
-
-// Steam-specific types. Defined here so this header file can be included in other code bases.
-#if !defined(WCHARTYPES_H) && !defined(CLANG)
-typedef unsigned char uint8;
-#endif
-
-#if defined( __GNUC__ ) && !defined(POSIX)
-	#if __GNUC__ < 4
-		#error "Steamworks requires GCC 4.X (4.2 or 4.4 have been tested)"
+	
+	#ifdef _S4N_
+		typedef unsigned int size_t;
+		#define NULL 0
 	#endif
-	#define POSIX 1
+#endif
+
+#ifdef _WIN32
+	#define STEAM_CALL __cdecl
+#else
+	#define STEAM_CALL
 #endif
 
 #if defined(__x86_64__) || defined(_WIN64)
-#define X64BITS
+	#define X64BITS
 #endif
 
 typedef unsigned char uint8;
 typedef signed char int8;
 
-#if defined( _WIN32 ) && !defined(CLANG)
+#if defined( _MSV_VER )
 
-typedef __int16 int16;
-typedef unsigned __int16 uint16;
-typedef __int32 int32;
-typedef unsigned __int32 uint32;
-typedef __int64 int64;
-typedef unsigned __int64 uint64;
+	typedef __int16 int16;
+	typedef unsigned __int16 uint16;
+	typedef __int32 int32;
+	typedef unsigned __int32 uint32;
+	typedef __int64 int64;
+	typedef unsigned __int64 uint64;
 
-#ifdef X64BITS
-typedef __int64 intp;				// intp is an integer that can accomodate a pointer
-typedef unsigned __int64 uintp;		// (ie, sizeof(intp) >= sizeof(int) && sizeof(intp) >= sizeof(void *)
-#else
-typedef __int32 intp;
-typedef unsigned __int32 uintp;
-#endif
+	#ifdef X64BITS
+		typedef __int64 intp;				// intp is an integer that can accomodate a pointer
+		typedef unsigned __int64 uintp;		// (ie, sizeof(intp) >= sizeof(int) && sizeof(intp) >= sizeof(void *)
+	#else
+		typedef __int32 intp;
+		typedef unsigned __int32 uintp;
+	#endif
 
-#else // _WIN32
+#else // _MSV_VER
 
-typedef short int16;
-typedef unsigned short uint16;
-typedef int int32;
-typedef unsigned int uint32;
-typedef long long int64;
-typedef unsigned long long uint64;
-#ifdef X64BITS
-typedef long long intp;
-typedef unsigned long long uintp;
-#else
-typedef int intp;
-typedef unsigned int uintp;
-#endif
+	typedef short int16;
+	typedef unsigned short uint16;
+	typedef int int32;
+	typedef unsigned int uint32;
+	typedef long long int64;
+	typedef unsigned long long uint64;
+	#ifdef X64BITS
+		typedef long long intp;
+		typedef unsigned long long uintp;
+	#else
+		typedef int intp;
+		typedef unsigned int uintp;
+	#endif
 
-#endif // else _WIN32
+#endif // else _MSV_VER
+
 
 #ifndef abstract_class
-	#ifndef _MSC_VER
-		#define abstract_class class
-	#else
+	#ifdef _MSC_VER
 		#define abstract_class class __declspec( novtable )
+	#else
+		#define abstract_class class
 	#endif
 #endif
 
+
+#ifdef _MSC_VER
+	#define STEAMWORKS_DEPRECATE( Message ) __declspec(deprecated(#Message))
+#elif defined(__GNUC__)
+	#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5))
+		#define STEAMWORKS_DEPRECATE( Message ) __attribute__((__deprecated__(#Message)))
+	#else
+		#define STEAMWORKS_DEPRECATE( Message ) __attribute__((__deprecated__))
+	#endif
+#else
+	#define STEAMWORKS_DEPRECATE( Message )
+#endif
+
+#ifndef STEAMWORKS_OBSOLETE_INTERFACES
+	#define OBSOLETE_INTERFACE STEAMWORKS_DEPRECATE("This interface is obsolete and is not available in the latest builds of Steam. #define STEAMWORKS_OBSOLETE_INTERFACES to suppress this warning.")
+#else
+	#define OBSOLETE_INTERFACE
+#endif
+
+#ifndef STEAMWORKS_OBSOLETE_FUNCTIONS
+	#define OBSOLETE_FUNCTION STEAMWORKS_DEPRECATE("This function is obsolete and is not available in the latest builds of Steam. #define STEAMWORKS_OBSOLETE_FUNCTIONS to suppress this warning.")
+#else
+	#define OBSOLETE_FUNCTION
+#endif
+
+#ifndef STEAMWORKS_OBSOLETE_CALLBACKS
+	#define OBSOLETE_CALLBACK STEAMWORKS_DEPRECATE("This callback is obsolete and will not be triggered in the latest builds of Steam. #define STEAMWORKS_OBSOLETE_CALLBACKS to suppress this warning.")
+#else
+	#define OBSOLETE_CALLBACK
+#endif
+
+#ifndef STEAMWORKS_CLIENT_INTERFACES
+	#define UNSAFE_INTERFACE STEAMWORKS_DEPRECATE("IClient interfaces are unversioned and potentially unsafe. Class definition can change between steamclient releases. #define STEAMWORKS_CLIENT_INTERFACES to suppress this warning.")
+#else
+	#define UNSAFE_INTERFACE
+#endif
+
+#ifndef STEAM_API_NON_VERSIONED_INTERFACES
+	#ifdef _MSC_VER
+		#define S_API_UNSAFE extern "C" __declspec( dllexport ) STEAMWORKS_DEPRECATE("Steam*() interface accessing functions are unversioned and potentially unsafe. These are versioned to assume you are using the latest version of the steam_api loader, if this is not the case your code is likely to crash, read the comment above the functions to learn about the version safe accessing method that will account for newer steam_api versions, older versions are always unsupported. #define STEAM_API_NON_VERSIONED_INTERFACES to suppress this warning.")
+	#elif defined(__GNUC__)
+		#if defined(__linux__) || defined(__APPLE_CC__)
+			#define S_API_UNSAFE extern "C" STEAMWORKS_DEPRECATE("Steam*() interface accessing functions are unversioned and potentially unsafe. These are versioned to assume you are using the latest version of the steam_api loader, if this is not the case your code is likely to crash, read the comment above the functions to learn about the version safe accessing method that will account for newer steam_api versions, older versions are always unsupported. #define STEAM_API_NON_VERSIONED_INTERFACES to suppress this warning.")
+		#else
+			#define S_API_UNSAFE extern "C" __declspec( dllexport ) STEAMWORKS_DEPRECATE("Steam*() interface accessing functions are unversioned and potentially unsafe. These are versioned to assume you are using the latest version of the steam_api loader, if this is not the case your code is likely to crash, read the comment above the functions to learn about the version safe accessing method that will account for newer steam_api versions, older versions are always unsupported. #define STEAM_API_NON_VERSIONED_INTERFACES to suppress this warning.")
+		#endif
+	#else
+		#define S_API_UNSAFE extern "C"
+	#endif
+#else
+	#ifdef _WIN32
+		#define S_API_UNSAFE extern "C" __declspec( dllexport )
+	#else
+		#define S_API_UNSAFE extern "C"
+	#endif
+#endif
+
+#if defined(_WIN32) && defined(__GNUC__) && !defined(_S4N_)
+	#define STEAMWORKS_STRUCT_RETURN_0(returnType, functionName)	\
+		virtual void functionName( returnType& ret ) = 0;			\
+		inline returnType functionName()							\
+		{															\
+			returnType ret;											\
+			this->functionName(ret);								\
+			return ret;												\
+		}
+	#define STEAMWORKS_STRUCT_RETURN_1(returnType, functionName, arg1Type, arg1Name)	\
+		virtual void functionName( returnType& ret, arg1Type arg1Name ) = 0;			\
+		inline returnType functionName( arg1Type arg1Name )								\
+		{																				\
+			returnType ret;																\
+			this->functionName(ret, arg1Name);											\
+			return ret;																	\
+		}
+	#define STEAMWORKS_STRUCT_RETURN_2(returnType, functionName, arg1Type, arg1Name, arg2Type, arg2Name)	\
+		virtual void functionName( returnType& ret, arg1Type arg1Name, arg2Type arg2Name ) = 0;				\
+		inline returnType functionName( arg1Type arg1Name, arg2Type arg2Name )								\
+		{																									\
+			returnType ret;																					\
+			this->functionName(ret, arg1Name, arg2Name);													\
+			return ret;																						\
+		}
+	#define STEAMWORKS_STRUCT_RETURN_3(returnType, functionName, arg1Type, arg1Name, arg2Type, arg2Name, arg3Type, arg3Name)	\
+		virtual void functionName( returnType& ret, arg1Type arg1Name, arg2Type arg2Name, arg3Type arg3Name ) = 0;				\
+		inline returnType functionName( arg1Type arg1Name, arg2Type arg2Name, arg3Type arg3Name )								\
+		{																														\
+			returnType ret;																										\
+			this->functionName(ret, arg1Name, arg2Name, arg3Name);																\
+			return ret;																											\
+		}
+#else
+	#define STEAMWORKS_STRUCT_RETURN_0(returnType, functionName) virtual returnType functionName() = 0;
+	#define STEAMWORKS_STRUCT_RETURN_1(returnType, functionName, arg1Type, arg1Name) virtual returnType functionName( arg1Type arg1Name ) = 0;
+	#define STEAMWORKS_STRUCT_RETURN_2(returnType, functionName, arg1Type, arg1Name, arg2Type, arg2Name) virtual returnType functionName( arg1Type arg1Name, arg2Type arg2Name ) = 0;
+	#define STEAMWORKS_STRUCT_RETURN_3(returnType, functionName, arg1Type, arg1Name, arg2Type, arg2Name, arg3Type, arg3Name) virtual returnType functionName( arg1Type arg1Name, arg2Type arg2Name, arg3Type arg3Name ) = 0;
+#endif
+
 // steamclient/api
-#include "EAccountType.h"
-#include "EChatMemberStateChange.h"
-#include "ELobbyType.h"
-#include "ENotificationPosition.h"
-#include "EPersonalQuestion.h"
+
 #include "EResult.h"
-#include "EUniverse.h"
-#include "EServerMode.h"
+
+
+// lobby type description
+enum ELobbyType
+{
+	k_ELobbyTypePrivate = 0,		// only way to join the lobby is to invite to someone else
+	k_ELobbyTypeFriendsOnly = 1,	// shows for friends or invitees, but not in lobby list
+	k_ELobbyTypePublic = 2,			// visible for friends and in lobby list
+	k_ELobbyTypeInvisible = 3,		// returned by search, but not visible to other friends 
+	//    useful if you want a user in two lobbies, for example matching groups together
+	//	  a user can be in only one regular lobby, and up to two invisible lobbies
+};
+
+//-----------------------------------------------------------------------------
+// Purpose: Possible positions to tell the overlay to show notifications in
+//-----------------------------------------------------------------------------
+enum ENotificationPosition
+{
+	k_EPositionTopLeft = 0,
+	k_EPositionTopRight = 1,
+	k_EPositionBottomLeft = 2,
+	k_EPositionBottomRight = 3,
+};
+
+//-----------------------------------------------------------------------------
+// Purpose: Used in ChatInfo messages - fields specific to a chat member - must fit in a uint32
+//-----------------------------------------------------------------------------
+enum EChatMemberStateChange
+{
+	// Specific to joining / leaving the chatroom
+	k_EChatMemberStateChangeEntered			= 0x0001,		// This user has joined or is joining the chat room
+	k_EChatMemberStateChangeLeft			= 0x0002,		// This user has left or is leaving the chat room
+	k_EChatMemberStateChangeDisconnected	= 0x0004,		// User disconnected without leaving the chat first
+	k_EChatMemberStateChangeKicked			= 0x0008,		// User kicked
+	k_EChatMemberStateChangeBanned			= 0x0010,		// User kicked and banned
+};
+
+
+enum EServerMode
+{
+	eServerModeInvalid = 0, // DO NOT USE		
+	eServerModeNoAuthentication = 1, // Don't authenticate user logins and don't list on the server list
+	eServerModeAuthentication = 2, // Authenticate users, list on the server list, don't run VAC on clients that connect
+	eServerModeAuthenticationAndSecure = 3, // Authenticate users, list on the server list and VAC protect clients
+};
+
+// Steam universes.  Each universe is a self-contained Steam instance.
+enum EUniverse
+{
+	k_EUniverseInvalid = 0,
+	k_EUniversePublic = 1,
+	k_EUniverseBeta = 2,
+	k_EUniverseInternal = 3,
+	k_EUniverseDev = 4,
+//	k_EUniverseRC = 5, // Removed
+
+	k_EUniverseMax
+};
+
+
 
 // these is outside NO_STEAM because external things use it
 #include "ESteamError.h"
@@ -254,7 +415,7 @@ const AppId_t k_nGameIDNotepad = 65535;
 const AppId_t k_nGameIDCSSTestApp = 65534;
 const AppId_t k_nGameIDDRMTestApp_Static = 6710;
 const AppId_t k_nGameIDDRMTestApp_Blob = 6711;
-const AppId_t k_nGameIDDRMTestApp_Secrets = 6712;
+const AppId_t k_nGameIDDRMTestApp_Dynamic = 6712;
 const AppId_t k_nGameIDDRMTestApp_SDK = 6713;
 const AppId_t k_nGameIDWinUI = 7;
 const AppId_t k_nGameIDWinUI2 = 8;
@@ -267,12 +428,16 @@ const AppId_t k_nGameIDRicochet = 60;
 const AppId_t k_nGameIDHL1 = 70;
 const AppId_t k_nGameIDCZero = 80;
 const AppId_t k_nGameIDCSBeta = 150;
+const AppId_t k_nGameIDMacVAC = 160;
+const AppId_t k_nGameIDWinVAC = 202;
+const AppId_t k_nGameIDScreenshots = 760;
+const AppId_t k_nGameDRMTest = 199;
 const AppId_t k_nGameIDBaseSourceSDK = 215;
 const AppId_t k_nGameIDHL2 = 220;
-const AppId_t k_nGameIDCSS = 240;
 const AppId_t k_nDepotHL2Buka = 235;
+const AppId_t k_nGameIDCSS = 240;
+const AppId_t k_nGameIDCSSBeta = 260;
 const AppId_t k_nGameHL1SRC = 280;
-const AppId_t k_nGameDRMTest = 199;
 const AppId_t k_nGameIDDODSRC = 300;
 const AppId_t k_nGameIDHL2DM = 320;
 const AppId_t k_nGameIDPortal = 400;
@@ -281,6 +446,13 @@ const AppId_t k_nGameIDTF2 = 440;
 const AppId_t k_nGameIDL4D = 500;
 const AppId_t k_nGameIDL4DDemo = 530;
 const AppId_t k_nGameIDL4D2 = 550;
+const AppId_t k_nGameIDASW = 630;
+const AppId_t k_nGameIDTF2Staging = 810;
+const AppId_t k_nGameIDPortal2Main = 852;
+const AppId_t k_nGameIDPortal2 = 620;
+const AppId_t k_nGameIDASWMain = 877;
+const AppId_t k_nGameIDDOTA = 882;
+const AppId_t k_nGameIDASWStaging = 886;
 const AppId_t k_nGameIDRedOrchestra = 1200;
 const AppId_t k_nGameIDRedOrchestraBeta = 1210;
 const AppId_t k_nGameIDKillingFloor = 1250;
@@ -299,6 +471,12 @@ const AppId_t k_nGameIDLostPlanet = 6510;
 const AppId_t k_nGameIDNBA2K9 = 7740;
 const AppId_t k_nGameIDCallofDuty4 = 7940;
 const AppId_t k_nMLBFrontOfficeManager = 7780;
+const AppId_t k_nGameIDMW2SP = 10180;
+const AppId_t k_nGameIDMW2MP = 10190;
+const AppId_t k_nGameIDIW5SP = 42680;
+const AppId_t k_nGameIDIW5MP = 42690;
+const AppId_t k_nGameIDCODBLOPSSP = 42700;
+const AppId_t k_nGameIDCODBLOPSMP = 42710;
 const AppId_t k_nGameIDEmpireTotalWar = 10500;
 const AppId_t k_nGameCSSOnline = 11600;
 const AppId_t k_nGameIDFirstSource = 200;
@@ -309,6 +487,10 @@ const AppId_t k_nGameIDFirstNonSource = 1000;
 const AppId_t k_nGameIDMax = 2147483647;
 const AppId_t k_nGameIDStress = 30020;
 const AppId_t k_nGameIDGCTest = 30100;
+const AppId_t k_nAppATIDriver_Vista7_32 = 61800;
+const AppId_t k_nAppATIDriver_Vista7_64 = 61810;
+const AppId_t k_nAppATIDriver_XP_32 = 61820;
+const AppId_t k_nAppATIDriver_XP_64 = 61830;
 
 typedef enum ShareType_t
 {
@@ -365,61 +547,18 @@ typedef uint32 HTTPRequestHandle;
 
 typedef int unknown_ret; // unknown return value
 
-typedef int HServerQuery;
-const int HSERVERQUERY_INVALID = 0xffffffff;
-
 // returns true of the flags indicate that a user has been removed from the chat
 #define BChatMemberStateChangeRemoved( rgfChatMemberStateChangeFlags ) ( rgfChatMemberStateChangeFlags & ( k_EChatMemberStateChangeDisconnected | k_EChatMemberStateChangeLeft | k_EChatMemberStateChangeKicked | k_EChatMemberStateChangeBanned ) )
-
-// game server flags
-const uint32 k_unFavoriteFlagNone			= 0x00;
-const uint32 k_unFavoriteFlagFavorite		= 0x01; // this game favorite entry is for the favorites list
-const uint32 k_unFavoriteFlagHistory		= 0x02; // this game favorite entry is for the history list
-
-// handle to a socket
-typedef uint32 SNetSocket_t;
-typedef uint32 SNetListenSocket_t;
-
-// 32KB max size on chat messages
-const uint32 k_cchFriendChatMsgMax = 32 * 1024;
-
-// maximum number of characters in a user's name. Two flavors; one for UTF-8 and one for UTF-16.
-// The UTF-8 version has to be very generous to accomodate characters that get large when encoded
-// in UTF-8.
-enum
-{
-	k_cchPersonaNameMax = 128,
-	k_cwchPersonaNameMax = 32,
-};
-
-// size limit on chat room or member metadata
-const uint32 k_cubChatMetadataMax = 8192;
-
-const int k_cchSystemIMTextMax = 4096;	// upper bound of length of system IM text
-
-// size limit on stat or achievement name (UTF-8 encoded)
-const int k_cchStatNameMax = 128;
-
-// maximum number of bytes for a leaderboard name (UTF-8 encoded)
-const int k_cchLeaderboardNameMax = 128;
-
-// maximum number of details int32's storable for a single leaderboard entry
-const int k_cLeaderboardDetailsMax = 64;
-
-// handle to a single leaderboard
-typedef uint64 SteamLeaderboard_t;
-
-// handle to a set of downloaded entries in a leaderboard
-typedef uint64 SteamLeaderboardEntries_t;
 
 typedef void (*PFNLegacyKeyRegistration)( const char *pchCDKey, const char *pchInstallPath );
 typedef bool (*PFNLegacyKeyInstalled)();
 
 const unsigned int k_unSteamAccountIDMask = 0xFFFFFFFF;
 const unsigned int k_unSteamAccountInstanceMask = 0x000FFFFF;
-// we allow 2 simultaneous user account instances right now, 1= desktop, 2 = console, 0 = all
+// we allow 3 simultaneous user account instances right now, 1= desktop, 2 = console, 4 = web, 0 = all
 const unsigned int k_unSteamUserDesktopInstance = 1;	 
 const unsigned int k_unSteamUserConsoleInstance = 2;
+const unsigned int k_unSteamUserWebInstance		= 4;
 
 // Special flags for Chat accounts - they go in the top 8 bits
 // of the steam ID's "instance", leaving 12 for the actual instances
@@ -433,10 +572,6 @@ enum EChatSteamIDInstanceFlags
 
 	// Max of 8 flags
 };
-
-// A handle to a piece of user generated content
-typedef uint64 UGCHandle_t;
-const UGCHandle_t k_UGCHandleInvalid = 0xffffffffffffffffull;
 
 #define STEAM_USING_FILESYSTEM							(0x00000001)
 #define STEAM_USING_LOGGING								(0x00000002)
@@ -479,9 +614,11 @@ typedef void * SteamUserIDTicketValidationHandle_t;
 typedef unsigned int SteamCallHandle_t;
 
 #if defined(_MSC_VER)
-typedef unsigned __int64	SteamUnsigned64_t;
+	typedef __int64				SteamSigned64_t;
+	typedef unsigned __int64	SteamUnsigned64_t;
 #else
-typedef unsigned long long	SteamUnsigned64_t;
+	typedef long long			SteamSigned64_t;
+	typedef unsigned long long	SteamUnsigned64_t;
 #endif
 
 
@@ -510,10 +647,10 @@ const unsigned int										STEAM_USE_LATEST_VERSION = 0xFFFFFFFF;
 
 typedef	unsigned short		SteamInstanceID_t;		// MUST be 16 bits
 
-#if defined ( WIN32 ) && !defined(CLANG)
-typedef	unsigned __int64	SteamLocalUserID_t;		// MUST be 64 bits
+#if defined (_MSC_VER)
+	typedef	unsigned __int64	SteamLocalUserID_t;	// MUST be 64 bits
 #else
-typedef	unsigned long long	SteamLocalUserID_t;		// MUST be 64 bits
+	typedef	unsigned long long	SteamLocalUserID_t;	// MUST be 64 bits
 #endif
 
 
@@ -546,7 +683,10 @@ enum ECallbackType
 	k_iSteamGameServerStatsCallbacks = 1800,
 	k_iSteam2AsyncCallbacks = 1900,
 	k_iSteamGameStatsCallbacks = 2000,
-	k_iClientHTTPCallbacks = 2100
+	k_iClientHTTPCallbacks = 2100,
+	k_iClientScreenshotsCallbacks = 2200,
+	k_iSteamScreenshotsCallbacks = 2300,
+	k_iClientAudioCallbacks = 2400,
 };
 
 
@@ -587,6 +727,8 @@ enum ECallbackType
 #include "servernetadr.h"
 #include "gameserveritem.h"
 #include "FriendGameInfo.h"
+#include "EVoiceResult.h"
+#include "ECurrencyCode.h"
 
 // structure that contains client callback data
 struct CallbackMsg_t
@@ -596,6 +738,8 @@ struct CallbackMsg_t
 	uint8 *m_pubParam;
 	int m_cubParam;
 };
+
+
 
 #endif // STEAMTYPES_H
 

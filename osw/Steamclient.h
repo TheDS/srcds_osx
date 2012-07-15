@@ -23,75 +23,12 @@
 
 #include "SteamTypes.h"
 
-#ifndef STEAMWORKS_OBSOLETE_INTERFACES
-	#ifdef _MSC_VER
-		#define OBSOLETE_INTERFACE __declspec(deprecated("This interface is obsolete and is not available in the latest builds of Steam. #define STEAMWORKS_OBSOLETE_INTERFACES to suppress this warning."))
-	#elif defined(__GNUC__)
-		#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5))
-			#define OBSOLETE_INTERFACE __attribute__((__deprecated__("This interface is obsolete and is not available in the latest builds of Steam. #define STEAMWORKS_OBSOLETE_INTERFACES to suppress this warning.")))
-		#else
-			#define OBSOLETE_INTERFACE __attribute__((__deprecated__))
-		#endif
-	#else
-		#define OBSOLETE_INTERFACE
-	#endif
-#else
-		#define OBSOLETE_INTERFACE
+#if defined(__GNUC__) && defined(_WIN32)
+	// This ugly hack allows us to provide GCC compatibility on windows without much effort
+	#pragma push_macro("virtual")
+	#undef virtual
+	#define virtual virtual __thiscall
 #endif
-
-#ifndef STEAMWORKS_OBSOLETE_FUNCTIONS
-	#ifdef _MSC_VER
-		#define OBSOLETE_FUNCTION __declspec(deprecated("This function is obsolete and is not available in the latest builds of Steam. #define STEAMWORKS_OBSOLETE_FUNCTIONS to suppress this warning."))
-	#elif defined(__GNUC__)
-		#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5))
-			#define OBSOLETE_FUNCTION __attribute__((__deprecated__("This function is obsolete and is not available in the latest builds of Steam. #define STEAMWORKS_OBSOLETE_FUNCTIONS to suppress this warning.")))
-		#else
-			#define OBSOLETE_FUNCTION __attribute__((__deprecated__))
-		#endif
-	#else
-		#define OBSOLETE_FUNCTION
-	#endif
-#else
-		#define OBSOLETE_FUNCTION
-#endif
-
-#ifndef STEAMWORKS_CLIENT_INTERFACES
-	#ifdef _MSC_VER
-		#define UNSAFE_INTERFACE __declspec(deprecated("IClient interfaces are unversioned and potentially unsafe. Class defintion can change between steamclient releases. #define STEAMWORKS_CLIENT_INTERFACES to suppress this warning."))
-	#elif defined(__GNUC__)
-		#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5))
-			#define UNSAFE_INTERFACE __attribute__((__deprecated__("IClient interfaces are unversioned and potentially unsafe. Class defintion can change between steamclient releases. #define STEAMWORKS_CLIENT_INTERFACES to suppress this warning.")))
-		#else
-			#define UNSAFE_INTERFACE __attribute__((__deprecated__))
-		#endif
-	#else
-		#define UNSAFE_INTERFACE
-	#endif
-#else
-		#define UNSAFE_INTERFACE
-#endif
-
-#ifndef STEAM_API_NON_VERSIONED_INTERFACES
-	#ifdef _MSC_VER
-		#define S_API_UNSAFE extern "C" __declspec( dllexport deprecated("Steam*() interface accessing functions are unversioned and potentially unsafe. These are versioned to assume you are using the latest version of the steam_api loader, if this is not the case your code is likely to crash, read the comment above the functions to learn about the version safe accessing method that will account for newer steam_api versions, older versions are always unsupported. #define STEAM_API_NON_VERSIONED_INTERFACES to suppress this warning.") )
-	#elif defined(__GNUC__)
-		#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5))
-			#define S_API_UNSAFE extern "C" __attribute__((__deprecated__("Steam*() interface accessing functions are unversioned and potentially unsafe. These are versioned to assume you are using the latest version of the steam_api loader, if this is not the case your code is likely to crash, read the comment above the functions to learn about the version safe accessing method that will account for newer steam_api versions, older versions are always unsupported. #define STEAM_API_NON_VERSIONED_INTERFACES to suppress this warning.")))
-		#else
-			#define S_API_UNSAFE extern "C" __attribute__((__deprecated__))
-		#endif
-	#else
-		#define S_API_UNSAFE extern "C"
-	#endif
-#else
-	#ifdef _MSC_VER
-		#define S_API_UNSAFE extern "C" __declspec( dllexport )
-	#else
-		#define S_API_UNSAFE extern "C"
-	#endif
-#endif
-
-#include "SteamTypes.h"
 
 // client
 #include "ISteamClient006.h"
@@ -113,6 +50,8 @@
 #include "ISteamFriends008.h"
 #include "ISteamFriends009.h"
 #include "ISteamFriends010.h"
+#include "ISteamFriends011.h"
+#include "ISteamFriends012.h"
 
 // screenshots
 #include "ISteamScreenshots001.h"
@@ -132,11 +71,8 @@
 #include "ISteamUser015.h"
 #include "ISteamUser016.h"
 
-// user items
-#include "ISteamUserItems001.h"
-#include "ISteamUserItems002.h"
-#include "ISteamUserItems003.h"
-#include "ISteamUserItems004.h"
+// OAuth
+#include "ISteamOAuth001.h"
 
 // apps
 #include "ISteamApps001.h"
@@ -210,6 +146,7 @@
 #include "ISteamRemoteStorage003.h"
 #include "ISteamRemoteStorage004.h"
 #include "ISteamRemoteStorage005.h"
+#include "ISteamRemoteStorage006.h"
 
 // content server
 #include "ISteamContentServer001.h"
@@ -218,11 +155,6 @@
 // steam 2 bridge
 #include "ISteam2Bridge001.h"
 #include "ISteam2Bridge002.h"
-
-// game server items
-#include "ISteamGameServerItems002.h"
-#include "ISteamGameServerItems003.h"
-#include "ISteamGameServerItems004.h"
 
 // game coordinator
 #include "ISteamGameCoordinator001.h"
@@ -272,8 +204,12 @@
 
 // steam_api
 #ifdef VERSION_SAFE_STEAM_API_INTERFACES
-#include "CSteamAPIContext.h"
+	#include "CSteamAPIContext.h"
 #endif // VERSION_SAFE_STEAM_API_INTERFACES
+
+#if defined(__GNUC__) && defined(_WIN32)
+	#pragma pop_macro("virtual")
+#endif
 
 // Breakpad
 S_API errno_t STEAM_CALL Breakpad_SetSteamID( uint64 ulSteamID );

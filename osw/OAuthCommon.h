@@ -14,20 +14,14 @@
 //
 //=============================================================================
 
-#ifndef ESERVERMODE_H
-#define ESERVERMODE_H
+#ifndef OAUTHCOMMON_H
+#define OAUTHCOMMON_H
 #ifdef _WIN32
 #pragma once
 #endif
 
 
-typedef enum EServerMode
-{
-	eServerModeInvalid = 0, // DO NOT USE		
-	eServerModeNoAuthentication = 1, // Don't authenticate user logins and don't list on the server list
-	eServerModeAuthentication = 2, // Authenticate users, list on the server list, don't run VAC on clients that connect
-	eServerModeAuthenticationAndSecure = 3, // Authenticate users, list on the server list and VAC protect clients
-} EServerMode;
+#define STEAMOAUTH_INTERFACE_VERSION_001 "SteamOAuth001"
 
 
-#endif // ESERVERMODE_H
+#endif // OAUTHCOMMON_H

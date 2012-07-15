@@ -39,7 +39,7 @@
 
 
 // lobby search filter tools
-typedef enum ELobbyComparison
+enum ELobbyComparison
 {
 	k_ELobbyComparisonEqualToOrLessThan = -2,
 	k_ELobbyComparisonLessThan = -1,
@@ -47,21 +47,40 @@ typedef enum ELobbyComparison
 	k_ELobbyComparisonGreaterThan = 1,
 	k_ELobbyComparisonEqualToOrGreaterThan = 2,
 	k_ELobbyComparisonNotEqual = 3,
-} ELobbyComparison;
+};
 
 
 // lobby search distance
-typedef enum ELobbyDistanceFilter
+enum ELobbyDistanceFilter
 {
 	k_ELobbyDistanceFilterClose,		// only lobbies in the same immediate region will be returned
 	k_ELobbyDistanceFilterDefault,		// only lobbies in the same region or close, but looking further if the current region has infrequent lobby activity (the default)
 	k_ELobbyDistanceFilterFar,			// for games that don't have many latency requirements, will return lobbies about half-way around the globe
 	k_ELobbyDistanceFilterWorldwide,	// no filtering, will match lobbies as far as India to NY (not recommended, expect multiple seconds of latency between the clients)
-} ELobbyDistanceFilter;
+};
 
+// maximum number of characters a lobby metadata key can be
+#define k_nMaxLobbyKeyLength 255
+
+typedef int HServerQuery;
+const int HSERVERQUERY_INVALID = 0xffffffff;
+
+// game server flags
+const uint32 k_unFavoriteFlagNone			= 0x00;
+const uint32 k_unFavoriteFlagFavorite		= 0x01; // this game favorite entry is for the favorites list
+const uint32 k_unFavoriteFlagHistory		= 0x02; // this game favorite entry is for the history list
 
 
 #pragma pack( push, 8 )
+
+//-----------------------------------------------------------------------------
+// Purpose: a server was added/removed from the favorites list, you should refresh now
+//-----------------------------------------------------------------------------
+struct FavoritesListChangedOld_t
+{
+	enum { k_iCallback = k_iSteamMatchmakingCallbacks + 1 };
+};
+
 //-----------------------------------------------------------------------------
 // Purpose: a server was added/removed from the favorites list, you should refresh now
 //-----------------------------------------------------------------------------
@@ -89,8 +108,9 @@ struct LobbyInvite_t
 {
 	enum { k_iCallback = k_iSteamMatchmakingCallbacks + 3 };
 
-	CSteamID m_ulSteamIDUser;		// Steam ID of the person making the invite
+	CSteamID m_ulSteamIDUser;	// Steam ID of the person making the invite
 	CSteamID m_ulSteamIDLobby;	// Steam ID of the Lobby
+	CGameID m_ulGameID;			// GameID of the Lobby
 };
 
 
@@ -104,7 +124,7 @@ struct LobbyEnter_t
 	enum { k_iCallback = k_iSteamMatchmakingCallbacks + 4 };
 
 	CSteamID m_ulSteamIDLobby;							// SteamID of the Lobby you have entered
-	EChatPermission m_rgfChatPermissions;						// Permissions of the current user
+	EChatPermission m_rgfChatPermissions;				// Permissions of the current user
 	bool m_bLocked;										// If true, then only invited users may join
 	EChatRoomEnterResponse m_EChatRoomEnterResponse;	// EChatRoomEnterResponse
 };
@@ -121,6 +141,7 @@ struct LobbyDataUpdate_t
 
 	CSteamID m_ulSteamIDLobby;		// steamID of the Lobby
 	CSteamID m_ulSteamIDMember;		// steamID of the member whose data changed, or the room itself
+	uint8 m_bSuccess;
 };
 
 //-----------------------------------------------------------------------------
@@ -156,7 +177,7 @@ struct LobbyChatMsg_t
 //-----------------------------------------------------------------------------
 // Purpose: There's a change of Admin in this Lobby
 //-----------------------------------------------------------------------------
-struct LobbyAdminChange_t
+struct OBSOLETE_CALLBACK LobbyAdminChange_t
 {
 	enum { k_iCallback = k_iSteamMatchmakingCallbacks + 8 };
 
@@ -211,6 +232,7 @@ struct LobbyClosing_t
 struct LobbyKicked_t
 {
 	enum { k_iCallback = k_iSteamMatchmakingCallbacks + 12 };
+
 	uint64 m_ulSteamIDLobby;			// Lobby
 	uint64 m_ulSteamIDAdmin;			// User who kicked you - possibly the ID of the lobby itself
 	uint8 m_bKickedDueToDisconnect;		// true if you were kicked from the lobby due to the user losing connection to Steam (currently always true)
@@ -235,15 +257,32 @@ struct LobbyCreated_t
 							// k_EResultAccessDenied - your game isn't set to allow lobbies, or your client does haven't rights to play the game
 							// k_EResultLimitExceeded - your game client has created too many lobbies
 
-	CSteamID m_ulSteamIDLobby;		// chat room, zero if failed
+	uint64 m_ulSteamIDLobby;		// chat room, zero if failed
 };
 
+struct RequestFriendsLobbiesResponse_t
+{
+	enum { k_iCallback = k_iSteamMatchmakingCallbacks + 14 };
+
+	uint64 m_ulSteamIDFriend;
+	uint64 m_ulSteamIDLobby;
+	int m_cResultIndex;
+	int m_cResultsTotal;
+};
 
 struct GMSQueryResult_t
 {
 	uint32 uServerIP;
 	uint32 uServerPort;
-	uint32 uAuthPlayers;
+	int32 nAuthPlayers;
+};
+
+struct PingSample_t
+{
+	// TODO: Reverse this struct
+	#ifdef _S4N_
+	int m_iPadding;
+	#endif
 };
 
 #pragma pack( pop )

@@ -24,43 +24,51 @@
 #include "UserCommon.h"
 #include "ContentServerCommon.h"
 
+// Protobuf'ed class
+class ClientAppInfo
+#ifdef _S4N_
+{
+	int m_iPadding;
+}
+#endif
+;
 
 abstract_class UNSAFE_INTERFACE IClientUser
 {
 public:
 	virtual HSteamUser GetHSteamUser() = 0;
 
-	virtual void LogOn( bool bUnk1, CSteamID steamID ) = 0;
-	virtual void LogOnWithPassword( bool bUnk1, const char * pchLogin, const char * pchPassword ) = 0;
-	virtual void LogOnAndCreateNewSteamAccountIfNeeded( bool bUnk1 ) = 0;
+	virtual void LogOn( bool bInteractive, CSteamID steamID ) = 0;
+	virtual void LogOnWithPassword( bool bInteractive, const char * pchLogin, const char * pchPassword ) = 0;
+	virtual void LogOnAndCreateNewSteamAccountIfNeeded( bool bInteractive ) = 0;
 	virtual void LogOff() = 0;
 	virtual bool BLoggedOn() = 0;
 	virtual ELogonState GetLogonState() = 0;
 	virtual bool BConnected() = 0;
 	virtual bool BTryingToLogin() = 0;
 
-	virtual CSteamID GetSteamID() = 0;
-	virtual CSteamID GetConsoleSteamID() = 0;
+	STEAMWORKS_STRUCT_RETURN_0(CSteamID, GetSteamID) /*virtual CSteamID GetSteamID() = 0;*/
+	STEAMWORKS_STRUCT_RETURN_0(CSteamID, GetConsoleSteamID) /*virtual CSteamID GetConsoleSteamID() = 0;*/
 
 	virtual bool IsVACBanned( AppId_t nGameID ) = 0;
 	virtual bool RequireShowVACBannedMessage( AppId_t nAppID ) = 0;
 	virtual void AcknowledgeVACBanning( AppId_t nAppID ) = 0;
 
-	virtual void SetSteam2Ticket( uint8* pubTicket, int cubTicket ) = 0;
+	virtual void SetSteam2Ticket( uint8* pubTicket, int32 cubTicket ) = 0;
 	
 	virtual bool BExistsSteam2Ticket() = 0;
 
 	virtual bool SetEmail( const char *pchEmail ) = 0;
 
 	virtual bool SetConfigString( ERegistrySubTree eRegistrySubTree, const char *pchKey, const char *pchValue ) = 0;
-	virtual bool GetConfigString( ERegistrySubTree eRegistrySubTree, const char *pchKey, char *pchValue, int cbValue ) = 0;
-	virtual bool SetConfigInt( ERegistrySubTree eRegistrySubTree, const char *pchKey, int iValue ) = 0;
-	virtual bool GetConfigInt( ERegistrySubTree eRegistrySubTree, const char *pchKey, int *pValue ) = 0;
+	virtual bool GetConfigString( ERegistrySubTree eRegistrySubTree, const char *pchKey, char *pchValue, int32 cbValue ) = 0;
+	virtual bool SetConfigInt( ERegistrySubTree eRegistrySubTree, const char *pchKey, int32 iValue ) = 0;
+	virtual bool GetConfigInt( ERegistrySubTree eRegistrySubTree, const char *pchKey, int32 *pValue ) = 0;
 
-	virtual bool GetConfigStoreKeyName( ERegistrySubTree eRegistrySubTree, const char *pchKey, char *pchStoreName, int cbStoreName ) = 0;
+	virtual bool GetConfigStoreKeyName( ERegistrySubTree eRegistrySubTree, const char *pchKey, char *pchStoreName, int32 cbStoreName ) = 0;
 
-	virtual int InitiateGameConnection( void *pOutputBlob, int cbBlobMax, CSteamID steamIDGS, CGameID gameID, uint32 unIPServer, uint16 usPortServer, bool bSecure ) = 0;
-	virtual int InitiateGameConnectionOld( void *pOutputBlob, int cbBlobMax, CSteamID steamIDGS, CGameID gameID, uint32 unIPServer, uint16 usPortServer, bool bSecure, void *pvSteam2GetEncryptionKey, int cbSteam2GetEncryptionKey ) = 0;
+	virtual int32 InitiateGameConnection( void *pOutputBlob, int32 cbBlobMax, CSteamID steamIDGS, CGameID gameID, uint32 unIPServer, uint16 usPortServer, bool bSecure ) = 0;
+	virtual int32 InitiateGameConnectionOld( void *pOutputBlob, int32 cbBlobMax, CSteamID steamIDGS, CGameID gameID, uint32 unIPServer, uint16 usPortServer, bool bSecure, void *pvSteam2GetEncryptionKey, int32 cbSteam2GetEncryptionKey ) = 0;
 
 	virtual void TerminateGameConnection( uint32 unIPServer, uint16 usPortServer ) = 0;
 
@@ -79,10 +87,10 @@ public:
 	virtual uint32 GetGuestPassToRedeemCount() = 0;
 	virtual uint32 GetGuestPassLastUpdateTime() = 0;
 
-	virtual bool GetGuestPassToGiveInfo( uint32 nPassIndex, GID_t *pgidGuestPassID, PackageId_t* pnPackageID, RTime32* pRTime32Created, RTime32* pRTime32Expiration, RTime32* pRTime32Sent, RTime32* pRTime32Redeemed, char* pchRecipientAddress, int cRecipientAddressSize ) = 0;
+	virtual bool GetGuestPassToGiveInfo( uint32 nPassIndex, GID_t *pgidGuestPassID, PackageId_t* pnPackageID, RTime32* pRTime32Created, RTime32* pRTime32Expiration, RTime32* pRTime32Sent, RTime32* pRTime32Redeemed, char* pchRecipientAddress, int32 cRecipientAddressSize ) = 0;
 	virtual bool GetGuestPassToRedeemInfo( uint32 nPassIndex, GID_t *pgidGuestPassID, PackageId_t* pnPackageID, RTime32* pRTime32Created, RTime32* pRTime32Expiration, RTime32* pRTime32Sent, RTime32* pRTime32Redeemed ) = 0;
-	virtual bool GetGuestPassToRedeemSenderAddress( uint32 nPassIndex, char* pchSenderAddress, int cSenderAddressSize ) = 0;
-	virtual bool GetGuestPassToRedeemSenderName( uint32 nPassIndex, char* pchSenderName, int cSenderNameSize ) = 0;
+	virtual bool GetGuestPassToRedeemSenderAddress( uint32 nPassIndex, char* pchSenderAddress, int32 cSenderAddressSize ) = 0;
+	virtual bool GetGuestPassToRedeemSenderName( uint32 nPassIndex, char* pchSenderName, int32 cSenderNameSize ) = 0;
 
 	virtual bool RequestGuestPassTargetList( GID_t gidGuestPassID ) = 0;
 
@@ -92,37 +100,31 @@ public:
 
 	virtual bool SetLanguage( const char *pchLanguage ) = 0;
 
-	virtual void TrackAppUsageEvent( CGameID gameID, int eAppUsageEvent, const char *pchExtraInfo = "" ) = 0;
+	virtual void TrackAppUsageEvent( CGameID gameID, int32 eAppUsageEvent, const char *pchExtraInfo = "" ) = 0;
 
-	virtual int RaiseConnectionPriority( EConnectionPriority eConnectionPriority ) = 0;
-	virtual void ResetConnectionPriority( int hRaiseConnectionPriorityPrev ) = 0;
+	virtual int32 RaiseConnectionPriority( EConnectionPriority eConnectionPriority ) = 0;
+	virtual void ResetConnectionPriority( int32 hRaiseConnectionPriorityPrev ) = 0;
 
 	virtual void SetAccountNameFromSteam2( const char *pchAccountName ) = 0;
 	virtual bool SetPasswordFromSteam2( const char *pchPassword ) = 0;
 
-	virtual bool SetAccountNameForCachedCredentialLogin( const char *pchAccountName, bool bRememberPassword, bool bUnk ) = 0;
+	virtual bool SetAccountNameForCachedCredentialLogin( const char *pchAccountName, bool bUnk ) = 0;
 	virtual void SetLoginInformation( const char *pchAccountName, const char *pchPassword, bool bRememberPassword ) = 0;
+	virtual void ClearAllLoginInformation() = 0;
 
 	virtual void SetAccountCreationTime( RTime32 rtime32Time ) = 0;
-	virtual bool DoesTextContainUserPassword( const char *pchText ) = 0;
 
-	virtual OBSOLETE_FUNCTION uint32 obselete_GetCMIPAddress() = 0;
-	virtual OBSOLETE_FUNCTION uint32 obselete_GetP2PRelayIPAddress() = 0;
+	virtual SteamAPICall_t RequestWebAuthToken() = 0;
+	virtual bool GetCurrentWebAuthToken( char *pchBuffer, int32 cubBuffer ) = 0;
 
-	virtual SteamAPICall_t RequestWebAuthToken( void ) = 0;
-	virtual bool GetLanguage( char* pchLanguage, int cbLanguage ) = 0;
+	virtual bool GetLanguage( char* pchLanguage, int32 cbLanguage ) = 0;
 	virtual void SetCyberCafe( bool bCyberCafe ) = 0;
 
-	virtual void CreateAccount( const char *pchAccountName, const char *pchNewPassword, const char *pchNewEmail, int iQuestion, const char *pchNewQuestion, const char *pchNewAnswer ) = 0;
+	virtual void CreateAccount( const char *pchAccountName, const char *pchNewPassword, const char *pchNewEmail, int32 iQuestion, const char *pchNewQuestion, const char *pchNewAnswer ) = 0;
 
-	virtual void ResetPassword( const char *pchAccountName, const char *pchOldPassword, const char *pchNewPassword, const char *pchValidationCode, const char *pchAnswer ) = 0;
-
+	virtual SteamAPICall_t ResetPassword( const char *pchAccountName, const char *pchOldPassword, const char *pchNewPassword, const char *pchValidationCode, const char *pchAnswer ) = 0;
 
 	virtual void TrackNatTraversalStat( const CNatTraversalStat *pNatStat ) = 0;
-
-	virtual void RefreshSteam2Login() = 0;
-	virtual void RefreshSteam2LoginWithSecureOption( bool bIsSecure ) = 0;
-	virtual bool Steam2IsSecureComputer() = 0;
 
 	virtual PackageId_t GetPackageIDForGuestPassToRedeemByGID( GID_t gid ) = 0;
 
@@ -136,93 +138,104 @@ public:
 
 	virtual uint64 GetCurrentSessionToken() = 0;
 
-	virtual bool BUpdateAppOwnershipTicket( AppId_t nAppID, bool bOnlyUpdateIfStale, bool unk ) = 0;
+	virtual bool BUpdateAppOwnershipTicket( AppId_t nAppID, bool bOnlyUpdateIfStale, bool bIsDepot ) = 0;
 
 	virtual bool RequestCustomBinary( const char *pszAbsolutePath, AppId_t nAppID, bool bForceUpdate, bool bAppLaunchRequest ) = 0;
-	virtual bool GetCustomBinariesState( AppId_t unAppID, uint32 *punProgress ) = 0;
+	virtual EResult GetCustomBinariesState( AppId_t unAppID, uint32 *punProgress ) = 0;
+	virtual EResult RequestCustomBinaries( AppId_t unAppID, bool, bool, uint32 * ) = 0;
 
 	virtual void SetCellID( CellID_t cellID ) = 0;
+	virtual void SetWinningPingTimeForCellID( uint32 uPing ) = 0;
 
 	virtual const char *GetUserBaseFolder() = 0;
 
-	virtual bool GetUserDataFolder( CGameID gameID, char* pchBuffer, int cubBuffer ) = 0;
-	virtual bool GetUserConfigFolder( char *pchBuffer, int cubBuffer ) = 0;
+	virtual bool GetUserDataFolder( CGameID gameID, char* pchBuffer, int32 cubBuffer ) = 0;
+	virtual bool GetUserConfigFolder( char *pchBuffer, int32 cubBuffer ) = 0;
 
 	virtual bool GetAccountName( char* pchAccountName, uint32 cb ) = 0;
+	virtual bool IsPasswordRemembered() = 0;
 
-	virtual void RequiresLegacyCDKey( uint32 ) = 0;
-	virtual bool GetLegacyCDKey( AppId_t nAppID, char* pchKeyData, int cbKeyData ) = 0;
+	virtual bool RequiresLegacyCDKey( AppId_t nAppID ) = 0;
+	virtual bool GetLegacyCDKey( AppId_t nAppID, char* pchKeyData, int32 cbKeyData ) = 0;
 	virtual bool HasLegacyCDKey( AppId_t nAppID ) = 0;
 	virtual bool SetLegacyCDKey( AppId_t nAppID, const char* pchKeyData ) = 0;
 	virtual void RemoveLegacyCDKey( AppId_t nAppID ) = 0;
+	virtual void RequestLegacyCDKeyFromApp( AppId_t nMainAppID, AppId_t nDLCAppID ) = 0;
 
 	virtual bool BIsAnyGameRunning() = 0;
 
 	virtual void ChangePassword( const char *pchOldPassword, const char *pchNewPassword ) = 0;
 	virtual void ChangeEmail( const char *, const char *pchEmail ) = 0;
-	virtual void ChangeSecretQuestionAndAnswer( const char *, int iQuestion, const char *pchNewQuestion, const char *pchNewAnswer ) = 0;
+	virtual void ChangeSecretQuestionAndAnswer( const char *, int32 iQuestion, const char *pchNewQuestion, const char *pchNewAnswer ) = 0;
 
-	virtual void SetSteam2FullASTicket( uint8* pubTicket, int cubTicket ) = 0;
-	virtual uint32 GetSteam2FullASTicket( uint8* pubTicket, int32 cubTicket ) = 0;
+	virtual void SetSteam2FullASTicket( uint8* pubTicket, int32 cubTicket ) = 0;
+	virtual int32 GetSteam2FullASTicket( uint8* pubTicket, int32 cubTicket ) = 0;
 
-	virtual bool GetEmail( char* pchEmail, int cchEmail, bool* pbUnk ) = 0;
+	virtual bool GetEmail( char* pchEmail, int32 cchEmail, bool* pbValidated ) = 0;
 
 	virtual void RequestForgottenPasswordEmail( const char *pchAccountName, const char *pchTriedPassword ) = 0;
 	
-	virtual void FindAccountsByEmailAddress( const char *pchEmailAddress ) = 0; // UI Callback 161
-	virtual void FindAccountsByCdKey( const char *pchCdKey ) = 0; // ???
-	virtual void GetNumAccountsWithEmailAddress( const char * pchEmailAddress ) = 0; // UI Callback 159
-	virtual void IsAccountNameInUse( const char * pchAccountName ) = 0; // UI Callback 160
+	virtual void FindAccountsByEmailAddress( const char *pchEmailAddress ) = 0;
+	virtual void FindAccountsByCdKey( const char *pchCdKey ) = 0;
+	virtual void GetNumAccountsWithEmailAddress( const char * pchEmailAddress ) = 0;
+	virtual void IsAccountNameInUse( const char * pchAccountName ) = 0;
 
 	virtual void Test_FakeConnectionTimeout() = 0;
 
-	virtual bool RunInstallScript( AppId_t *pAppIDs, int cAppIDs, const char *pchInstallPath, const char *pchLanguage, bool bUninstall ) = 0;
+	virtual bool RunInstallScript( AppId_t *pAppIDs, int32 cAppIDs, const char *pchInstallPath, const char *pchLanguage, bool bUninstall ) = 0;
 
 	virtual AppId_t IsInstallScriptRunning() = 0;
 
-	virtual bool GetInstallScriptString( AppId_t nAppID, const char *pchInstallPath, const char *pchLanguage, const char *pchKeyname, const char *pchKeyvalue, char* pchValue, int cchValue ) = 0;
+	virtual bool GetInstallScriptString( AppId_t nAppID, const char *pchInstallPath, const char *pchLanguage, const char *pchKeyname, const char *pchKeyvalue, char* pchValue, int32 cchValue ) = 0;
 	virtual bool GetInstallScriptState( char* pchDescription, uint32 cchDescription, uint32* punNumSteps, uint32* punCurrStep ) = 0;
-//TODO
-	virtual bool SpawnProcess( void *lpVACBlob, uint32 cbBlobSize, const char *lpApplicationName, const char *lpCommandLine, uint32 dwCreationFlags, const char *lpCurrentDirectory, AppId_t nAppID, const char *pchGameName, bool bAlwaysUseShellExec ) = 0;
-	
+
+	virtual bool SpawnProcess( void *lpVACBlob, uint32 cbBlobSize, const char *lpApplicationName, const char *lpCommandLine, uint32 dwCreationFlags, const char *lpCurrentDirectory, CGameID gameID, AppId_t nAppID, const char *pchGameName, bool bAlwaysUseShellExec ) = 0;
+
 	virtual uint32 GetAppOwnershipTicketLength( uint32 nAppID ) = 0;
 	virtual uint32 GetAppOwnershipTicketData( uint32 nAppID, void *pvBuffer, uint32 cbBufferLength ) = 0;
 
-	virtual uint32 GetAppOwnershipTicketExtendedData( uint32 nAppID, void *pvBuffer, uint32 cbBufferLength, uint32*, uint32*, uint32* ticket_length, uint32* signature_length ) = 0;
+	virtual uint32 GetAppOwnershipTicketExtendedData( uint32 nAppID, void *pvBuffer, uint32 cbBufferLength, uint32* piAppId, uint32* piSteamId, uint32* piSignature, uint32* pcbSignature ) = 0;
 
 	virtual bool GetAppDecryptionKey( uint32 nAppID, void *pvBuffer, uint32 cbBufferLength ) = 0;
 
-	virtual int GetMarketingMessageCount() = 0;
-	virtual bool GetMarketingMessage( int cMarketingMessage, GID_t* gidMarketingMessageID, char* pubMsgUrl, int cubMessageUrl, EMarketingMessageFlags *eMarketingMssageFlags ) = 0;
+	virtual int32 GetMarketingMessageCount() = 0;
+	virtual bool GetMarketingMessage( int32 cMarketingMessage, GID_t* gidMarketingMessageID, char* pubMsgUrl, int32 cubMessageUrl, EMarketingMessageFlags *eMarketingMssageFlags ) = 0;
 
-	virtual HAuthTicket GetAuthSessionTicket( void *pMyAuthTicket, int cbMaxMyAuthTicket, uint32* pcbAuthTicket ) = 0;
+	virtual HAuthTicket GetAuthSessionTicket( void *pMyAuthTicket, int32 cbMaxMyAuthTicket, uint32* pcbAuthTicket ) = 0;
 
-	virtual EBeginAuthSessionResult BeginAuthSession( void const* pTheirAuthTicket, int cbTicket, CSteamID steamID ) = 0;
+	virtual EBeginAuthSessionResult BeginAuthSession( void const* pTheirAuthTicket, int32 cbTicket, CSteamID steamID ) = 0;
 	virtual void EndAuthSession( CSteamID steamID ) = 0;
 
 	virtual void CancelAuthTicket( HAuthTicket hAuthTicket ) = 0;
 
-	virtual int IsUserSubscribedAppInTicket( CSteamID steamID, AppId_t appID ) = 0;
+	virtual EUserHasLicenseForAppResult IsUserSubscribedAppInTicket( CSteamID steamID, AppId_t appID ) = 0;
 
-	virtual bool AdvertiseGame( CGameID gameID, CSteamID steamIDGameServer, uint32 unIPServer , uint16 usPortServer ) = 0;
+	virtual void AdvertiseGame( CGameID gameID, CSteamID steamIDGameServer, uint32 unIPServer , uint16 usPortServer ) = 0;
 
-	virtual SteamAPICall_t RequestEncryptedAppTicket( const void *pUserData, int cbUserData ) = 0;
-	virtual bool GetEncryptedAppTicket( void *pTicket, int cbMaxTicket, uint32 *pcbTicket ) = 0;
+	virtual SteamAPICall_t RequestEncryptedAppTicket( const void *pUserData, int32 cbUserData ) = 0;
+	virtual bool GetEncryptedAppTicket( void *pTicket, int32 cbMaxTicket, uint32 *pcbTicket ) = 0;
+
+	virtual SteamAPICall_t RequestOAuthTokenForApp( const char *cszOAuthScope ) = 0;
+	virtual bool GetOAuthTokenForApp( void *pubBuffer, int32 cubBuffer, uint32 *puTokenSize ) = 0;
+	virtual void InvalidateOAuthTokenForApp() = 0;
 
 	virtual void SetAccountLimited( bool bAccountLimited ) = 0;
 	virtual bool BIsAccountLimited() = 0;
 
+	virtual void SetAccountCommunityBanned( bool bBanned ) = 0;
+	virtual bool BIsAccountCommunityBanned() = 0;
+
 	virtual void SendValidationEmail() = 0;
 	virtual bool BGameConnectTokensAvailable() = 0;
 
-	virtual int NumGamesRunning() = 0;
-	virtual CGameID GetRunningGameID( int iGame ) = 0;
+	virtual int32 NumGamesRunning() = 0;
+	STEAMWORKS_STRUCT_RETURN_1(CGameID, GetRunningGameID, int32, iGame) /*virtual CGameID GetRunningGameID( int32 iGame ) = 0;*/
 
 	virtual uint32 GetAccountSecurityPolicyFlags() = 0;
 
-	virtual void RequestChangeEmail( const char *pchPassword, int eRequestType ) = 0;
+	virtual void RequestChangeEmail( const char *pchPassword, int32 eRequestType ) = 0;
 	virtual void ChangePasswordWithCode( const char *pchOldPassword, const char *pchCode, const char *pchNewPassword ) = 0;
-	virtual void ChangeEmailWithCode( const char *pchPassword, const char *pchCode, const char *pchEmail, bool bUnk ) = 0;
+	virtual void ChangeEmailWithCode( const char *pchPassword, const char *pchCode, const char *pchEmail, bool bFinal ) = 0;
 	virtual void ChangeSecretQuestionAndAnswerWithCode( const char *pchPassword, const char *pchCode, const char *pchNewQuestion, const char *pchNewAnswer ) = 0;
 
 	virtual void SetClientStat( EClientStat eStat, int64 llValue, AppId_t nAppID, DepotId_t nDepotID, CellID_t nCellID ) = 0;
@@ -231,41 +244,37 @@ public:
 
 	virtual bool BSupportUser() = 0;
 
-	virtual bool BIsAppOverlayEnabled( uint32 ) = 0;
+	virtual bool BIsAppOverlayEnabled( AppId_t nAppID ) = 0;
 
 	virtual bool BIsBehindNAT() = 0;
 
-	virtual AppId_t GetMicroTxnAppID( uint64 ) = 0;
-	virtual uint64 GetMicroTxnOrderID( uint64 ) = 0;
+	virtual AppId_t GetMicroTxnAppID( GID_t gidTransID ) = 0;
+	virtual uint64 GetMicroTxnOrderID( GID_t gidTransID ) = 0;
 
-	//virtual bool BGetMicroTxnPrice( uint64, CAmount *, CAmount *, bool * ) = 0;
-	virtual bool BGetMicroTxnPrice( uint64, int *, int *, bool * ) = 0;
+	virtual bool BGetMicroTxnPrice( GID_t gidTransID, CAmount *pamtTotal, CAmount *pamtTax, bool *pbVat ) = 0;
 
-	virtual int32 GetMicroTxnLineItemCount( uint64 ) = 0;
+	virtual int32 GetMicroTxnLineItemCount( GID_t gidTransID ) = 0;
 
-	//virtual bool BGetMicroTxnLineItem( uint64, uint32, CAmount *, uint32 *, char *, uint32 ) = 0;
-	virtual bool BGetMicroTxnLineItem( uint64, uint32, int *, uint32 *, char *, uint32 ) = 0;
+	virtual bool BGetMicroTxnLineItem( GID_t gidTransID, uint32 unLineItem, CAmount *pamt, uint32 *punQuantity, char *pchDescription, uint32 cubDescriptionLength ) = 0;
 
-	virtual bool BIsSandboxMicroTxn( uint64, bool* pbUnk ) = 0;
+	virtual bool BIsSandboxMicroTxn( GID_t gidTransID, bool* pbSandbox ) = 0;
 
-	//virtual unknown_ret AuthorizeMicroTxn( uint64, EMicroTxnAuthResponse ) = 0;
-	virtual SteamAPICall_t AuthorizeMicroTxn( uint64, int ) = 0;
+	virtual SteamAPICall_t AuthorizeMicroTxn( GID_t gidTransID, EMicroTxnAuthResponse eMicroTxnAuthResponse ) = 0;
 
-	virtual void NotifyAppMicroTxnAuthResponse( uint32, uint64, bool ) = 0;
+	virtual void NotifyAppMicroTxnAuthResponse( AppId_t unAppID, uint64 ulOrderID, bool bAuthorized ) = 0;
 
-	//virtual bool BGetWalletBalance( bool *, CAmount * ) = 0;
-	virtual bool BGetWalletBalance( bool *, int * ) = 0;
+	virtual bool BGetWalletBalance( bool *pbHasWallet, CAmount *pamtBalance ) = 0;
 
-	virtual SteamAPICall_t RequestMicroTxnInfo( uint64 ) = 0;
+	virtual SteamAPICall_t RequestMicroTxnInfo( GID_t gidTransID ) = 0;
 
-	virtual bool BGetAppMinutesPlayed( uint32, int *, int * ) = 0;
+	virtual bool BGetAppMinutesPlayed( AppId_t nAppId, int32 *pnForever, int32 *pnLastTwoWeeks ) = 0;
 
-	virtual bool BGetGuideURL( uint32, char *, uint32 ) = 0;
+	virtual bool BGetGuideURL( AppId_t uAppID, char *pchURL, uint32 cchURL ) = 0;
 
-	virtual void GetClientAppListResponse_AddApp( AppId_t nAppId, bool bFavorite, bool bInstalled, bool bAutoUpdate, const char *cszCategory, const char *cszAppType, uint64 ullBytesDownloaded, uint64 ullBytesNeeded, uint32 uBytesDownloadRate ) = 0;
+	virtual void GetClientAppListResponse_AddApp( const ClientAppInfo * pClientAppInfo ) = 0;
 	virtual void GetClientAppListResponse_AddDLC( AppId_t nAppId, bool bInstalled ) = 0;
-	virtual void GetClientAppListResponse_Done( unsigned long long ) = 0;
-	virtual void PostUIResultToClientJob( unsigned long long, EResult ) = 0;
+	virtual void GetClientAppListResponse_Done( uint64 ulBytesFreeOnDrive ) = 0;
+	virtual void PostUIResultToClientJob( uint64 ulJobID, EResult eResult ) = 0;
 
 	virtual bool BPromptToVerifyEmail() = 0;
 	virtual bool BPromptToChangePassword() = 0;
@@ -273,19 +282,33 @@ public:
 	virtual bool BAccountShouldShowLockUI() = 0;
 	virtual bool BAccountLockedByIPT() = 0;
 	virtual int32 GetCountAuthedComputers() = 0;
+	
+	virtual ESteamGuardProvider GetSteamGuardProvider() = 0;
+	virtual bool GetSteamGuardRequireCodeByDefault() = 0;
+	virtual bool ShowSteamGuardProviderOptions() = 0;
+	virtual bool SteamGuardProviderMobileIsOption() = 0;
+
 	virtual bool BAccountCanUseIPT() = 0;
-	virtual void ChangeTwoFactorAuthOptions( uint32 uOption ) = 0;
-	virtual void Set2ndFactorAuthCode( const char* pchAuthCode ) = 0;
+	virtual void ChangeTwoFactorAuthOptions( int32 eOption ) = 0;
+	virtual void ChangeSteamGuardOptions( ESteamGuardProvider eProvider, bool bRequireCode ) = 0;
+	virtual void Set2ndFactorAuthCode( const char* pchAuthCode, bool bDontRememberComputer ) = 0;
 	virtual bool BAccountHasIPTConfig() = 0;
 
-	virtual bool GetEmailDomainFromLogonFailure( char * pchEmailDomain, int cbEmailDomain ) = 0;
+	virtual bool GetEmailDomainFromLogonFailure( char * pchEmailDomain, int32 cbEmailDomain ) = 0;
 	
 	virtual bool BIsSubscribedApp( AppId_t nAppId ) = 0;
 	virtual SteamAPICall_t RegisterActivationCode( const char * pchActivationCode ) = 0;
 	
-	virtual void OptionalDLCInstallation( AppId_t, bool ) = 0;
+	virtual void OptionalDLCInstallation( AppId_t nAppID, bool bInstall ) = 0;
 
-	virtual void AckSystemIM(unsigned long long) = 0;
+	virtual void AckSystemIM( uint64 ) = 0;
+	
+	// Result returned by RequestSpecialSurveyResult_t callback
+	virtual SteamAPICall_t RequestSpecialSurvey( uint32 uSurveyId ) = 0;
+	// Result returned by SendSpecialSurveyResponseResult_t callback
+	virtual SteamAPICall_t SendSpecialSurveyResponse( uint32 uSurveyId, const uint8 * pubData, uint32 cubData ) = 0;
+	
+	virtual void RequestNotifications() = 0;
 };
 
 #endif // ICLIENTUSER_H

@@ -41,7 +41,7 @@ public:
 
 	// returns the CSteamID of the account currently logged into the Steam client
 	// a CSteamID is a unique identifier for an account, and used to differentiate users in all parts of the Steamworks API
-	virtual CSteamID GetSteamID() = 0;
+	STEAMWORKS_STRUCT_RETURN_0(CSteamID, GetSteamID) /*virtual CSteamID GetSteamID() = 0;*/
 
 	// Multiplayer Authentication functions
 	
@@ -106,8 +106,7 @@ public:
 
 	// After receiving a user's authentication data, and passing it to BeginAuthSession, use this function
 	// to determine if the user owns downloadable content specified by the provided AppID.
-	//virtual EUserHasLicenseForAppResult UserHasLicenseForApp( CSteamID steamID, AppId_t appID ) = 0;
-	virtual uint32 UserHasLicenseForApp( CSteamID steamID, AppId_t appID ) = 0;
+	virtual EUserHasLicenseForAppResult UserHasLicenseForApp( CSteamID steamID, AppId_t appID ) = 0;
 };
 
 #endif // ISTEAMUSER012_H
