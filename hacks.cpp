@@ -560,9 +560,9 @@ bool ForceSteamAppId(unsigned int appid)
 		return false;
 	}
 
-        getAppId = SymbolAddr<void *>(info.dli_fbase, steamclient_syms, 1);
+	getAppId = SymbolAddr<void *>(info.dli_fbase, steamclient_syms, 1);
 	setAppId = SymbolAddr<void *>(info.dli_fbase, steamclient_syms, 2);
-        detGetAppId = DETOUR_CREATE_MEMBER(GetAppID, getAppId);
+	detGetAppId = DETOUR_CREATE_MEMBER(GetAppID, getAppId);
 	detSetAppId = DETOUR_CREATE_MEMBER(SetAppIDForCurrentPipe, setAppId);
 
         if (!detGetAppId)
