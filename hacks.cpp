@@ -45,7 +45,7 @@ typedef struct task_dyld_info task_dyld_info_data_t;
 #endif
 
 static struct nlist dyld_syms[3];
-static struct nlist steamclient_syms[3];
+static struct nlist steamclient_syms[4];
 static struct nlist dedicated_syms[9];
 static struct nlist launcher_syms[3];
 static struct nlist engine_syms[2];
@@ -61,6 +61,7 @@ void *g_Launcher = NULL;
 
 CDetour *detSysLoadModules = NULL;
 CDetour *detGetAppId = NULL;
+CDetour *detSetAppId = NULL;
 
 #if defined(ENGINE_L4D)
 CDetour *detLoadModule = NULL;
@@ -103,6 +104,7 @@ bool InitSymbolData(const char *steamPath)
 		memset(steamclient_syms, 0, sizeof(steamclient_syms));
 		steamclient_syms[0].n_un.n_name = (char *)"__ZN14IClientUserMap14GetAccountNameEPcj";
 		steamclient_syms[1].n_un.n_name = (char *)"__ZN15IClientUtilsMap8GetAppIDEv";
+		steamclient_syms[2].n_un.n_name = (char *)"__ZN15IClientUtilsMap22SetAppIDForCurrentPipeEjb";
 		
 		if (nlist(clientPath, steamclient_syms) != 0)
 		{
@@ -298,9 +300,14 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 #endif // ENGINE_L4D
 
 #if defined(ENGINE_OBV)
-DETOUR_DECL_STATIC0(GetAppID, int)
+DETOUR_DECL_MEMBER0(GetAppID, int)
 {
 	return g_AppId;
+}
+
+DETOUR_DECL_MEMBER2(SetAppIDForCurrentPipe, int, int, nAppID, bool, bTrackProcess)
+{
+	DETOUR_MEMBER_CALL(SetAppIDForCurrentPipe)(g_AppId, bTrackProcess);
 }
 #endif
 
@@ -492,6 +499,11 @@ void RemoveDedicatedDetours()
 	{
 		detGetAppId->Destroy();
 	}
+
+	if (detSetAppId)
+	{
+		detSetAppId->Destroy();
+	}
 #endif
 	
 #if defined(ENGINE_L4D)
@@ -508,6 +520,7 @@ bool ForceSteamAppId(unsigned int appid)
 	void *steamclient;
 	void *entryPoint;
 	void *getAppId;
+	void *setAppId;
 	Dl_info info;
 
 	steamclient = dlopen("steamclient.dylib", RTLD_LAZY);
@@ -533,7 +546,9 @@ bool ForceSteamAppId(unsigned int appid)
 	}
 
         getAppId = SymbolAddr<void *>(info.dli_fbase, steamclient_syms, 1);
-        detGetAppId = DETOUR_CREATE_STATIC(GetAppID, getAppId);
+	setAppId = SymbolAddr<void *>(info.dli_fbase, steamclient_syms, 2);
+        detGetAppId = DETOUR_CREATE_MEMBER(GetAppID, getAppId);
+	detSetAppId = DETOUR_CREATE_MEMBER(SetAppIDForCurrentPipe, setAppId);
 
         if (!detGetAppId)
         {
@@ -541,7 +556,14 @@ bool ForceSteamAppId(unsigned int appid)
 		return false;
         }
 
+	if (!detSetAppId)
+	{
+		printf("Failed to detour SetAppIDForCurrentPipe\n");
+		return false;
+	}
+
 	detGetAppId->EnableDetour();
+	detSetAppId->EnableDetour();
 	g_AppId = appid;
 
 	return true;

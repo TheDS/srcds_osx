@@ -4,10 +4,10 @@ OBJECTS = main.cpp hacks.cpp mm_util.cpp CDetour/detours.cpp asm/asm.c cocoa_hel
 
 CC = clang
 CXX = clang++
-CFLAGS = -pipe -fno-strict-aliasing -fvisibility=hidden -m32 -Wall
+CFLAGS = -pipe -fno-strict-aliasing -fvisibility=hidden -m32 -Wall -Werror -Wno-deprecated-declarations
 CXXFLAGS = -fvisibility-inlines-hidden
-OPTFLAGS = -O3 -Werror
-DBGFLAGS = -g -ggdb3
+OPTFLAGS = -O3
+DBGFLAGS = -g3
 LDFLAGS = -m32 -mmacosx-version-min=10.5 -framework Foundation -framework AppKit
 
 INCLUDE = -I.
