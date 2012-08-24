@@ -63,7 +63,7 @@ CDetour *detSysLoadModules = NULL;
 CDetour *detGetAppId = NULL;
 CDetour *detSetAppId = NULL;
 
-#if defined(ENGINE_L4D)
+#if defined(ENGINE_OBV) || defined(ENGINE_L4D)
 CDetour *detLoadModule = NULL;
 CDetour *detSetShaderApi = NULL;
 #endif
@@ -152,7 +152,7 @@ bool InitSymbolData(const char *steamPath)
 		printf("Failed to find symbols for engine.dylib\n");
 		return false;
 	}
-	
+
 #if defined(ENGINE_L4D)
 	memset(material_syms, 0, sizeof(material_syms));
 	material_syms[0].n_un.n_name = (char *)"__ZN15CMaterialSystem12SetShaderAPIEPKc";
@@ -251,9 +251,23 @@ DETOUR_DECL_MEMBER1(CMaterialSystem_SetShaderAPI, void, const char *, pModuleNam
 	detSetShaderApi->Destroy();
 }
 
+#endif
+
+#if defined(ENGINE_OBV) || defined(ENGINE_L4D)
+
 /* CSysModule *Sys_LoadModule(const char *) */
 DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 {
+#if defined(ENGINE_OBV)
+	if (strstr(pModuleName, "chromehtml.dylib"))
+	{
+		return NULL;
+	}
+	else
+	{
+		return DETOUR_STATIC_CALL(Sys_LoadModule)(pModuleName);
+	}
+#elif defined(ENGINE_L4D)
 	char module[PATH_MAX];
 	void *handle = NULL;
 
@@ -295,6 +309,7 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 	}
 	
 	return handle;
+#endif
 }
 
 #endif // ENGINE_L4D
@@ -419,7 +434,7 @@ bool DoDedicatedHacks(void *entryPoint, bool steam, int appid)
 	void **pFileSystem;
 	void **pBaseFileSystem;
 	void *fileSystem;
-#if defined(ENGINE_L4D)
+#if defined(ENGINE_OBV) || defined(ENGINE_L4D)
 	void *loadModule;
 #endif
 
@@ -434,7 +449,7 @@ bool DoDedicatedHacks(void *entryPoint, bool steam, int appid)
 	AppSysGroup_AddSystems = SymbolAddr<AddSystems_t>(info.dli_fbase, dedicated_syms, 1);
 	pFileSystem = SymbolAddr<void **>(info.dli_fbase, dedicated_syms, 2);
 	pBaseFileSystem = SymbolAddr<void **>(info.dli_fbase, dedicated_syms, 3);
-#if defined(ENGINE_L4D)
+#if defined(ENGINE_OBV) || defined(ENGINE_L4D)
 	loadModule = SymbolAddr<void *>(info.dli_fbase, dedicated_syms, 4);
 #endif
 	fileSystem = SymbolAddr<void *>(info.dli_fbase, dedicated_syms, 5);
@@ -471,7 +486,7 @@ bool DoDedicatedHacks(void *entryPoint, bool steam, int appid)
 		return false;
 	}
 	
-#if defined(ENGINE_L4D)
+#if defined(ENGINE_OBV) || defined(ENGINE_L4D)
 	detLoadModule = DETOUR_CREATE_STATIC(Sys_LoadModule, loadModule);
 	if (!detLoadModule)
 	{
