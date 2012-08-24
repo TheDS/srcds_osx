@@ -307,7 +307,7 @@ DETOUR_DECL_MEMBER0(GetAppID, int)
 
 DETOUR_DECL_MEMBER2(SetAppIDForCurrentPipe, int, int, nAppID, bool, bTrackProcess)
 {
-	DETOUR_MEMBER_CALL(SetAppIDForCurrentPipe)(g_AppId, bTrackProcess);
+	return DETOUR_MEMBER_CALL(SetAppIDForCurrentPipe)(g_AppId, bTrackProcess);
 }
 #endif
 
