@@ -76,8 +76,11 @@ bool CDetour::Init(void *addr)
 	return enabled;
 }
 
-void CDetour::Destroy()
+void CDetour::Destroy(bool undoPatch)
 {
+	if (undoPatch)
+		detoured = false;
+
 	DeleteDetour();
 	delete this;
 }

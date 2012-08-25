@@ -599,12 +599,12 @@ void RemoveDedicatedDetours()
 #if defined(ENGINE_OBV)
 	if (detGetAppId)
 	{
-		detGetAppId->Destroy();
+		detGetAppId->Destroy(false);
 	}
 
 	if (detSetAppId)
 	{
-		detSetAppId->Destroy();
+		detSetAppId->Destroy(false);
 	}
 #endif
 	

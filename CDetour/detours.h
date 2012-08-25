@@ -144,7 +144,7 @@ public:
 	void *GetTargetAddr();
 	void SetTargetAddr(void *addr);
 
-	void Destroy();
+	void Destroy(bool undoPatch = true);
 
 	friend class CDetourManager;
 
