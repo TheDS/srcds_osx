@@ -37,6 +37,10 @@
 typedef int (*DedicatedMain_t)(int argc, char **argv);
 extern void *g_Launcher;
 
+#if defined(ENGINE_CSGO)
+extern void *g_EmptyShader;
+#endif
+
 /*
  * Set SteamAppId environment var to appid of dedicated server tool.
  *
@@ -51,6 +55,8 @@ void SetSteamAppId()
 	setenv("SteamAppId", "510", 1);
 #elif defined(ENGINE_L4D2)
 	setenv("SteamAppId", "560", 1);
+#elif defined(ENGINE_CSGO)
+	setenv("SteamAppId", "740", 1);
 #else
 #error Source engine version not defined!
 #endif
@@ -215,6 +221,12 @@ int main(int argc, char **argv)
 		}
 	}
 
+	/* Get steam path anyways in case it's installed. This will simplify setup for running servers when Steam isn't actually running */
+	if (!steam)
+	{
+		GetSteamPath(steamPath, sizeof(steamPath));
+	}
+
 	/* Initialize symbol offsets for various libraries that we will be using */
 	if (!InitSymbolData(steam ? steamPath : NULL))
 	{
@@ -230,7 +242,7 @@ int main(int argc, char **argv)
 
 	char libPath[PATH_MAX];
 	char *oldPath = getenv("DYLD_LIBRARY_PATH");
-	mm_Format(libPath, sizeof(libPath), "%s:%s:%s/bin:%s", steamPath, cwd, cwd, oldPath);
+	mm_Format(libPath, sizeof(libPath), "%s:%s:%s/bin:%s/bin/osx32:%s", steamPath, cwd, cwd, cwd, oldPath);
 	
 	if (SetLibraryPath(libPath) != 0)
 	{
@@ -339,6 +351,13 @@ int main(int argc, char **argv)
 	{
 		dlclose(g_Launcher);
 	}
+
+#if defined(ENGINE_CSGO)
+	if (g_EmptyShader)
+	{
+		dlclose(g_EmptyShader);
+	}
+#endif
 
 	/* Unload dedicated.dylib */
 	dlclose(lib);
