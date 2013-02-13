@@ -61,8 +61,17 @@ init() {
 	PARAMS=$*
 	NUMFORKS=""
 	NO_DEFAULT_MAP=0
-	DEFAULT_GAME="left4dead2"
-	DEFAULT_MAP="c1m1_hotel"
+
+	if [ -d "left4dead2" ]; then
+		DEFAULT_GAME="left4dead2"
+		DEFAULT_MAP="c1m1_hotel"
+	elif [ -d "nucleardawn" ]; then
+		DEFAULT_GAME="nucleardawn"
+		DEFAULT_MAP="downtown"
+	else
+		DEFAULT_GAME=""
+		DEFAULT_MAP=""
+	fi
 
 	# Remove any old default pid files
 	# Cant do this as they may be still running
