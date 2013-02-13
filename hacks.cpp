@@ -132,13 +132,15 @@ bool InitSymbolData(const char *steamPath)
 	dedicated_syms[0].n_un.n_name = (char *)"__ZN4CSys11LoadModulesEP24CDedicatedAppSystemGroup";
 	dedicated_syms[1].n_un.n_name = (char *)"__ZN15CAppSystemGroup10AddSystemsEP15AppSystemInfo_t";
 	dedicated_syms[2].n_un.n_name = (char *)"_g_pFileSystem";
-	dedicated_syms[3].n_un.n_name = (char *)"__ZL17g_pBaseFileSystem";
-	dedicated_syms[4].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc";
 #if defined(ENGINE_OBV)
+	dedicated_syms[3].n_un.n_name = (char *)"_g_pBaseFileSystem";
+	dedicated_syms[4].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc9Sys_Flags";
 	dedicated_syms[5].n_un.n_name = steamPath ? (char *)"__ZL18g_FileSystem_Steam" : (char *)"_g_FileSystem_Stdio";
 	dedicated_syms[6].n_un.n_name = (char *)"__ZN17CFileSystem_Steam4InitEv";
 	dedicated_syms[7].n_un.n_name = (char *)"__Z17MountDependenciesiR10CUtlVectorIj10CUtlMemoryIjiEE";
 #else
+	dedicated_syms[3].n_un.n_name = (char *)"__ZL17g_pBaseFileSystem";
+	dedicated_syms[4].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc";
 	dedicated_syms[5].n_un.n_name = (char *)"_g_FileSystem_Stdio";
 #endif
 
@@ -159,7 +161,11 @@ bool InitSymbolData(const char *steamPath)
 	}
 
 	memset(engine_syms, 0, sizeof(engine_syms));
+#if defined(ENGINE_OBV)
+	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherMgr";
+#else
 	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherCocoaMgr";
+#endif
 
 	if (nlist("bin/engine.dylib", engine_syms) != 0)
 	{
@@ -320,8 +326,12 @@ DETOUR_DECL_MEMBER1(CMaterialSystem_SetShaderAPI, void, const char *, pModuleNam
 
 #if defined(ENGINE_OBV) || defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 
-/* CSysModule *Sys_LoadModule(const char *) */
+/* CSysModule *Sys_LoadModule(const char *, Sys_Flags) */
+#if defined(ENGINE_OBV)
+DETOUR_DECL_STATIC2(Sys_LoadModule, void *, const char *, pModuleName, int, flags)
+#else
 DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
+#endif
 {
 #if defined(ENGINE_OBV)
 	if (strstr(pModuleName, "chromehtml.dylib"))
@@ -330,7 +340,7 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 	}
 	else
 	{
-		return DETOUR_STATIC_CALL(Sys_LoadModule)(pModuleName);
+		return DETOUR_STATIC_CALL(Sys_LoadModule)(pModuleName, flags);
 	}
 #elif defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 	void *handle = NULL;
@@ -350,7 +360,7 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 #endif
 
 	handle = DETOUR_STATIC_CALL(Sys_LoadModule)(pModuleName);
-	
+
 	/* We need to install a detour in the materialsystem library, ugh */
 	if (handle && strstr(pModuleName, "bin/materialsystem.dylib"))
 	{
