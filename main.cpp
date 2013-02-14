@@ -206,6 +206,7 @@ int main(int argc, char **argv)
 				game = argv[n];
 			}
 		}
+#if defined(ENGINE_OBV)
 		else if (!steam && strcmp(argv[i], "-steam") == 0)
 		{
 			/* 
@@ -219,6 +220,7 @@ int main(int argc, char **argv)
 			}
 			steam = true;
 		}
+#endif
 	}
 
 	/* Get steam path anyways in case it's installed. This will simplify setup for running servers when Steam isn't actually running */
