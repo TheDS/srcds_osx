@@ -24,7 +24,7 @@ init() {
 	HL_DETECT=1
 	HL="./$SRCDS_BIN"
 	TIMEOUT=10 # time to wait after a crash (in seconds)
-	CRASH_DEBUG_MSG="Post about crashes or other issues at https://forums.alliedmods.net/showthread.php?t58241"
+	CRASH_DEBUG_MSG="Post about crashes or other issues at https://forums.alliedmods.net/showthread.php?t=158240"
 	GDB="gdb" # the gdb binary to run
 	DEBUG_LOG="debug.log"
 	CONSOLE_LOG=""
