@@ -32,6 +32,9 @@ endif
 ifeq "$(ENGINE)" "l4d2"
 	CFLAGS += -DENGINE_L4D2
 endif
+ifeq "$(ENGINE)" "l4d2b"
+	CFLAGS += -DENGINE_L4D2BETA
+endif
 ifeq "$(ENGINE)" "csgo"
 	CFLAGS += -DENGINE_CSGO
 endif
@@ -49,13 +52,14 @@ $(BIN_DIR)/%.o: %.c
 $(BIN_DIR)/%.o: %.mm
 	$(CXX) $(INCLUDE) $(CFLAGS) $(CXXFLAGS) -m32 -o $@ -c $<
 
-.PHONY: all check clean cleanup obv gmod l4d l4d2 csgo srcds_osx
+.PHONY: all check clean cleanup obv gmod l4d l4d2 l4d2b csgo srcds_osx
 
 all:
 	$(MAKE) obv
 	$(MAKE) gmod
 	$(MAKE) l4d
 	$(MAKE) l4d2
+	$(MAKE) l4d2b
 	$(MAKE) csgo
 
 check:
@@ -73,6 +77,9 @@ l4d:
 
 l4d2:
 	$(MAKE) srcds_osx ENGINE=l4d2
+
+l4d2b:
+	$(MAKE) srcds_osx ENGINE=l4d2b
 
 csgo:
 	$(MAKE) srcds_osx ENGINE=csgo
@@ -94,5 +101,6 @@ clean:
 	make cleanup ENGINE=gmod
 	make cleanup ENGINE=l4d
 	make cleanup ENGINE=l4d2
+	make cleanup ENGINE=l4d2b
 	make cleanup ENGINE=csgo
 

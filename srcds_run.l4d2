@@ -62,7 +62,10 @@ init() {
 	NUMFORKS=""
 	NO_DEFAULT_MAP=0
 
-	if [ -d "left4dead2" ]; then
+	if [ -d "left4dead2_beta" ]; then
+		DEFAULT_GAME="left4dead2_beta"
+		DEFAULT_MAP="c1m1_hotel"
+	elif [ -d "left4dead2" ]; then
 		DEFAULT_GAME="left4dead2"
 		DEFAULT_MAP="c1m1_hotel"
 	elif [ -d "nucleardawn" ]; then
