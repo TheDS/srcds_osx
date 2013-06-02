@@ -117,8 +117,12 @@ bool InitSymbolData()
 	memset(dedicated_syms, 0, sizeof(dedicated_syms));
 	dedicated_syms[0].n_un.n_name = (char *)"__ZN4CSys11LoadModulesEP24CDedicatedAppSystemGroup";
 	dedicated_syms[1].n_un.n_name = (char *)"__ZN15CAppSystemGroup10AddSystemsEP15AppSystemInfo_t";
+#if defined(ENGINE_GMOD)
+	dedicated_syms[2].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc9Sys_Flags";
+#else
 	dedicated_syms[2].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc";
-#if !defined(ENGINE_OBV)
+#endif
+#if !defined(ENGINE_OBV) && !defined(ENGINE_GMOD)
 	dedicated_syms[3].n_un.n_name = (char *)"_g_pFileSystem";
 	dedicated_syms[4].n_un.n_name = (char *)"__ZL17g_pBaseFileSystem";
 	dedicated_syms[5].n_un.n_name = (char *)"_g_FileSystem_Stdio";
@@ -141,7 +145,7 @@ bool InitSymbolData()
 	}
 
 	memset(engine_syms, 0, sizeof(engine_syms));
-#if defined(ENGINE_OBV)
+#if defined(ENGINE_OBV) || defined(ENGINE_GMOD)
 	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherMgr";
 #else
 	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherCocoaMgr";
@@ -314,7 +318,7 @@ DETOUR_DECL_MEMBER1(CMaterialSystem_SetShaderAPI, void, const char *, pModuleNam
 
 #endif // ENGINE_L4D || ENGINE_CSGO
 
-#if defined(ENGINE_OBV)
+#if defined(ENGINE_OBV) || defined(ENGINE_GMOD)
 DETOUR_DECL_STATIC2(Sys_FsLoadModule, void *, const char *, pModuleName, int, flags)
 {
 	if (strstr(pModuleName, "chromehtml"))
@@ -464,7 +468,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 			loadModule = SymbolAddr<void *>(info.dli_fbase, fsstdio_syms, 0);
 			if (loadModule != info.dli_fbase)
 			{
-				detFsLoadModule = DETOUR_CREATE_STATIC(Sys_LoadModule, loadModule);
+				detFsLoadModule = DETOUR_CREATE_STATIC(Sys_FsLoadModule, loadModule);
 				if (detFsLoadModule)
 				{
 					detFsLoadModule->EnableDetour();
@@ -561,7 +565,7 @@ bool DoDedicatedHacks(void *entryPoint)
 {
 	Dl_info info;
 	void *sysLoad, *loadModule;
-#if !defined(ENGINE_OBV)
+#if !defined(ENGINE_OBV) && !defined(ENGINE_GMOD)
 	void **pFileSystem;
 	void **pBaseFileSystem;
 	void *fileSystem;
@@ -578,7 +582,7 @@ bool DoDedicatedHacks(void *entryPoint)
 	sysLoad = SymbolAddr<unsigned char *>(info.dli_fbase, dedicated_syms, 0);
 	AppSysGroup_AddSystems = SymbolAddr<AddSystems_t>(info.dli_fbase, dedicated_syms, 1);
 	loadModule = SymbolAddr<void *>(info.dli_fbase, dedicated_syms, 2);
-#if !defined(ENGINE_OBV)
+#if !defined(ENGINE_OBV) && !defined(ENGINE_GMOD)
 	pFileSystem = SymbolAddr<void **>(info.dli_fbase, dedicated_syms, 3);
 	pBaseFileSystem = SymbolAddr<void **>(info.dli_fbase, dedicated_syms, 4);
 	fileSystem = SymbolAddr<void *>(info.dli_fbase, dedicated_syms, 5);
@@ -596,7 +600,11 @@ bool DoDedicatedHacks(void *entryPoint)
 		return false;
 	}
 
+#if defined(ENGINE_GMOD)
+	detLoadModule = DETOUR_CREATE_STATIC(Sys_FsLoadModule, loadModule);
+#else
 	detLoadModule = DETOUR_CREATE_STATIC(Sys_LoadModule, loadModule);
+#endif
 	if (!detLoadModule)
 	{
 		printf("Failed to create detour for Sys_LoadModule\n");
@@ -637,7 +645,7 @@ void RemoveDedicatedDetours()
 		detSysLoadModules->Destroy();
 	}
 
-#if defined(ENGINE_OBV)
+#if defined(ENGINE_OBV) || defined(ENGINE_GMOD)
 	if (detFsLoadModule)
 	{
 		detFsLoadModule->Destroy();
