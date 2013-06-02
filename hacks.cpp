@@ -8,7 +8,7 @@
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License, version 3.0, as published by the
  * Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
@@ -47,9 +47,9 @@ typedef struct task_dyld_info task_dyld_info_data_t;
 
 static struct nlist dyld_syms[3];
 static struct nlist steamclient_syms[4];
-static struct nlist dedicated_syms[9];
+static struct nlist dedicated_syms[7];
 static struct nlist launcher_syms[3];
-static struct nlist engine_syms[2];
+static struct nlist engine_syms[3];
 
 #if defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 static struct nlist material_syms[11];
@@ -81,6 +81,7 @@ CDetour *detGetAppId = NULL;
 CDetour *detSetAppId = NULL;
 CDetour *detLoadModule = NULL;
 CDetour *detSetShaderApi = NULL;
+CDetour *detDebugString = NULL;
 
 struct AppSystemInfo_t
 {
@@ -114,12 +115,12 @@ bool InitSymbolData(const char *steamPath)
 	{
 		char clientPath[PATH_MAX];
 		mm_Format(clientPath, sizeof(clientPath), "%s/steamclient.dylib", steamPath);
-		
+
 		memset(steamclient_syms, 0, sizeof(steamclient_syms));
 		steamclient_syms[0].n_un.n_name = (char *)"__ZN14IClientUserMap14GetAccountNameEPcj";
 		steamclient_syms[1].n_un.n_name = (char *)"__ZN15IClientUtilsMap8GetAppIDEv";
 		steamclient_syms[2].n_un.n_name = (char *)"__ZN15IClientUtilsMap22SetAppIDForCurrentPipeEjb";
-		
+
 		if (nlist(clientPath, steamclient_syms) != 0)
 		{
 			printf("Failed to find symbols for steamclient.dylib\n");
@@ -131,16 +132,10 @@ bool InitSymbolData(const char *steamPath)
 	memset(dedicated_syms, 0, sizeof(dedicated_syms));
 	dedicated_syms[0].n_un.n_name = (char *)"__ZN4CSys11LoadModulesEP24CDedicatedAppSystemGroup";
 	dedicated_syms[1].n_un.n_name = (char *)"__ZN15CAppSystemGroup10AddSystemsEP15AppSystemInfo_t";
-	dedicated_syms[2].n_un.n_name = (char *)"_g_pFileSystem";
-#if defined(ENGINE_OBV)
-	dedicated_syms[3].n_un.n_name = (char *)"_g_pBaseFileSystem";
-	dedicated_syms[4].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc9Sys_Flags";
-	dedicated_syms[5].n_un.n_name = steamPath ? (char *)"__ZL18g_FileSystem_Steam" : (char *)"_g_FileSystem_Stdio";
-	dedicated_syms[6].n_un.n_name = (char *)"__ZN17CFileSystem_Steam4InitEv";
-	dedicated_syms[7].n_un.n_name = (char *)"__Z17MountDependenciesiR10CUtlVectorIj10CUtlMemoryIjiEE";
-#else
-	dedicated_syms[3].n_un.n_name = (char *)"__ZL17g_pBaseFileSystem";
-	dedicated_syms[4].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc";
+	dedicated_syms[2].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc";
+#if !defined(ENGINE_OBV)
+	dedicated_syms[3].n_un.n_name = (char *)"_g_pFileSystem";
+	dedicated_syms[4].n_un.n_name = (char *)"__ZL17g_pBaseFileSystem";
 	dedicated_syms[5].n_un.n_name = (char *)"_g_FileSystem_Stdio";
 #endif
 
@@ -212,7 +207,7 @@ bool InitSymbolData(const char *steamPath)
 }
 
 int SetLibraryPath(const char *path)
-{	
+{
 	typedef void (*SetEnv_t)(const char *, const char *);
 	int ret = setenv("DYLD_LIBRARY_PATH", path, 1);
 	if (ret != 0)
@@ -236,12 +231,12 @@ int SetLibraryPath(const char *path)
 		/* Shift dyld address; this can happen with ASLR on Lion (10.7) */
 		dyld_syms[0].n_value += int32_t(dyld_info.all_image_info_addr - dyld_syms[1].n_value);
 	}
-	
+
 	/* A hacky hack */
 	typedef void (*SetEnv_t)(const char *, const char *);
 	SetEnv_t DyldSetEnv = SymbolAddr<SetEnv_t>(NULL, dyld_syms, 0);
 	DyldSetEnv("DYLD_LIBRARY_PATH", path);
-	
+
 	return 0;
 }
 
@@ -251,7 +246,7 @@ int SetLibraryPath(const char *path)
 static inline const char *FixLibraryExt(const char *pModuleName, char *buffer, size_t maxLength)
 {
 	size_t origLen = strlen(pModuleName);
-	
+
 	/*
 	 * 3 extra chars are needed to do this.
 	 *
@@ -265,11 +260,11 @@ static inline const char *FixLibraryExt(const char *pModuleName, char *buffer, s
 			/* Yes, this should be safe now */
 			memcpy(buffer, pModuleName, baseLen);
 			strcpy(buffer + baseLen, ".dylib");
-			
+
 			return buffer;
 		}
 	}
-	
+
 	return pModuleName;
 }
 
@@ -325,13 +320,7 @@ DETOUR_DECL_MEMBER1(CMaterialSystem_SetShaderAPI, void, const char *, pModuleNam
 #endif // ENGINE_L4D || ENGINE_CSGO
 
 #if defined(ENGINE_OBV) || defined(ENGINE_L4D) || defined(ENGINE_CSGO)
-
-/* CSysModule *Sys_LoadModule(const char *, Sys_Flags) */
-#if defined(ENGINE_OBV)
-DETOUR_DECL_STATIC2(Sys_LoadModule, void *, const char *, pModuleName, int, flags)
-#else
 DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
-#endif
 {
 #if defined(ENGINE_OBV)
 	if (strstr(pModuleName, "chromehtml.dylib"))
@@ -340,7 +329,7 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 	}
 	else
 	{
-		return DETOUR_STATIC_CALL(Sys_LoadModule)(pModuleName, flags);
+		return DETOUR_STATIC_CALL(Sys_LoadModule)(pModuleName);
 	}
 #elif defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 	void *handle = NULL;
@@ -373,7 +362,7 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 			printf("Failed to find CreateInterface (%s)\n", dlerror());
 			return NULL;
 		}
-		
+
 		if (!dladdr(materialFactory, &info) || !info.dli_fbase || !info.dli_fname)
 		{
 			printf("Failed to get base address of materialsystem.dylib\n");
@@ -405,12 +394,17 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 		detSetShaderApi->EnableDetour();
 
 	}
-	
+
 	return handle;
 #endif
 }
 
 #endif // ENGINE_L4D
+
+DETOUR_DECL_STATIC1(Plat_DebugString, void, const char *, str)
+{
+	/* Do nothing. K? */
+}
 
 #if defined(ENGINE_OBV)
 DETOUR_DECL_MEMBER0(GetAppID, int)
@@ -444,7 +438,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 		printf("Failed to open launcher.dylib (%s)\n",  dlerror());
 		return false;
 	}
-	
+
 	launcherMain = dlsym(g_Launcher, "LauncherMain");
 	if (!launcherMain)
 	{
@@ -453,8 +447,8 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 		g_Launcher = NULL;
 		return false;
 	}
-	
-	memset(&info, 0, sizeof(Dl_info)); 
+
+	memset(&info, 0, sizeof(Dl_info));
 	if (!dladdr(launcherMain, &info) || !info.dli_fbase || !info.dli_fname)
 	{
 		printf("Failed to get base address of launcher.dylib\n");
@@ -462,13 +456,14 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 		g_Launcher = NULL;
 		return false;
 	}
-	
+
 	AppSysGroup_AddSystem = SymbolAddr<AddSystem_t>(info.dli_fbase, launcher_syms, 0);
 	pCocoaMgr = SymbolAddr<void *>(info.dli_fbase, launcher_syms, 1);
-	
+
 	/* The engine and material system expect this interface to be available */
 	AppSysGroup_AddSystem(appsys, pCocoaMgr, "CocoaMgrInterface006");
 
+#if !defined(ENGINE_OBV)
 	AppSystemInfo_t sys_before[] =
 	{
 		{"inputsystem.dylib",	"InputSystemVersion001"},
@@ -478,10 +473,11 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 		{"",					""}
 	};
 	AppSysGroup_AddSystems(appsys, sys_before);
-	
+#endif
+
 	/* Call the original */
 	ret = DETOUR_MEMBER_CALL(CSys_LoadModules)(appsys);
-	
+
 	/* Engine should already be loaded at this point by the original function */
 	engine = dlopen("engine.dylib", RTLD_NOLOAD);
 	if (!engine)
@@ -489,7 +485,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 		printf("Failed to get existing handle for engine.dylib (%s)\n", dlerror());
 		return false;
 	}
-	
+
 	engineFactory = dlsym(engine, "CreateInterface");
 	if (!engineFactory)
 	{
@@ -497,19 +493,29 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 		dlclose(engine);
 		return false;
 	}
-	
+
 	if (!dladdr(engineFactory, &info) || !info.dli_fbase || !info.dli_fname)
 	{
 		printf("Failed to get base address of engine.dylib\n");
 		dlclose(engine);
 		return false;
 	}
-	
+
 	engineCocoa = SymbolAddr<void **>(info.dli_fbase, engine_syms, 0);
-	
+
 	/* Prevent crash in engine function which expects this interface */
 	*engineCocoa = pCocoaMgr;
 
+#if defined(ENGINE_PORTAL2)
+	/* Horrible fix for crash on exit */
+	unsigned char *quit = SymbolAddr<unsigned char *>(info.dli_fbase, engine_syms, 1);
+	SetMemPatchable(quit, 32);
+	quit += 12;
+	quit[0] = 0xEB;
+	quit[1] = 0x22;
+#endif
+
+#if !defined(ENGINE_OBV)
 	/* Load these to prevent crashes in engine and replay system */
 	AppSystemInfo_t sys_after[] =
 	{
@@ -522,6 +528,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 		{"",						""}
 	};
 	AppSysGroup_AddSystems(appsys, sys_after);
+#endif
 
 	dlclose(engine);
 
@@ -531,11 +538,13 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 bool DoDedicatedHacks(void *entryPoint, bool steam, int appid)
 {
 	Dl_info info;
-	void *sysLoad;
+	void *sysLoad, *loadModule;
+#if !defined(ENGINE_OBV)
 	void **pFileSystem;
 	void **pBaseFileSystem;
 	void *fileSystem;
-	void *loadModule;
+#endif
+	void *tier0, *dbgString;
 
 	memset(&info, 0, sizeof(Dl_info));
 	if (!dladdr(entryPoint, &info) || !info.dli_fbase || !info.dli_fname)
@@ -543,38 +552,20 @@ bool DoDedicatedHacks(void *entryPoint, bool steam, int appid)
 		printf("Failed to get base address of dedicated.dylib\n");
 		return false;
 	}
-	
+
 	sysLoad = SymbolAddr<unsigned char *>(info.dli_fbase, dedicated_syms, 0);
 	AppSysGroup_AddSystems = SymbolAddr<AddSystems_t>(info.dli_fbase, dedicated_syms, 1);
-	pFileSystem = SymbolAddr<void **>(info.dli_fbase, dedicated_syms, 2);
-	pBaseFileSystem = SymbolAddr<void **>(info.dli_fbase, dedicated_syms, 3);
-	loadModule = SymbolAddr<void *>(info.dli_fbase, dedicated_syms, 4);
+	loadModule = SymbolAddr<void *>(info.dli_fbase, dedicated_syms, 2);
+#if !defined(ENGINE_OBV)
+	pFileSystem = SymbolAddr<void **>(info.dli_fbase, dedicated_syms, 3);
+	pBaseFileSystem = SymbolAddr<void **>(info.dli_fbase, dedicated_syms, 4);
 	fileSystem = SymbolAddr<void *>(info.dli_fbase, dedicated_syms, 5);
-	
+
 	/* Work around conflicts between FileSystem_Stdio and FileSystem_Steam */
 	*pFileSystem = fileSystem;
 	*pBaseFileSystem = fileSystem;
-	
-#if defined(ENGINE_OBV)
-	if (steam)
-	{
-		typedef int (*SteamInit_t)(void *);
-		typedef void (*SteamMount_t)(int, void*);
-		
-		SteamInit_t SteamInit = SymbolAddr<SteamInit_t>(info.dli_fbase, dedicated_syms, 6);
-		SteamMount_t SteamMount = SymbolAddr<SteamMount_t>(info.dli_fbase, dedicated_syms, 7);
-		
-		/* Init steam filesystem */
-		SteamInit(fileSystem);
-
-		char dummy[512];
-		memset(dummy, 0, sizeof(dummy));
-		
-		/* Mount steam content */
-		SteamMount(appid, dummy);
-	}
 #endif
-	
+
 	/* Detour CSys::LoadModules() */
 	detSysLoadModules = DETOUR_CREATE_MEMBER(CSys_LoadModules, sysLoad);
 	if (!detSysLoadModules)
@@ -582,7 +573,7 @@ bool DoDedicatedHacks(void *entryPoint, bool steam, int appid)
 		printf("Failed to create detour for CSys::LoadModules\n");
 		return false;
 	}
-	
+
 #if defined(ENGINE_OBV) || defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 	detLoadModule = DETOUR_CREATE_STATIC(Sys_LoadModule, loadModule);
 	if (!detLoadModule)
@@ -595,12 +586,33 @@ bool DoDedicatedHacks(void *entryPoint, bool steam, int appid)
 #endif
 
 	detSysLoadModules->EnableDetour();
-	
+
+
+	/* Failing to find Plat_DebugString is non-fatal */
+	tier0 = dlopen("libtier0.dylib", RTLD_NOLOAD);
+	if (tier0)
+	{
+		dbgString = dlsym(tier0, "Plat_DebugString");
+		detDebugString = DETOUR_CREATE_STATIC(Plat_DebugString, dbgString);
+
+		if (detDebugString)
+		{
+			detDebugString->EnableDetour();
+		}
+
+		dlclose(tier0);
+	}
+
 	return true;
 }
 
 void RemoveDedicatedDetours()
 {
+	if (detDebugString)
+	{
+		detDebugString->Destroy();
+	}
+
 	if (detSysLoadModules)
 	{
 		detSysLoadModules->Destroy();
@@ -617,7 +629,7 @@ void RemoveDedicatedDetours()
 		detSetAppId->Destroy(false);
 	}
 #endif
-	
+
 #if defined(ENGINE_OBV) || defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 	if (detLoadModule)
 	{
@@ -696,18 +708,18 @@ void *GetAccountNameFunc(const void *entryPoint)
 
 #if defined(ENGINE_L4D)
 void *GetBuildCmdLine()
-{	
+{
 	Dl_info info;
 	void *tier0 = NULL;
 	void *msg = NULL;
-	
+
 	tier0 = dlopen("libtier0.dylib", RTLD_NOLOAD);
 	if (!tier0)
 	{
 		printf("Failed to get existing handle for libtier0.dylib (%s)\n", dlerror());
 		return NULL;
 	}
-	
+
 	msg = dlsym(tier0, "Msg");
 	if (!msg)
 	{
@@ -715,17 +727,16 @@ void *GetBuildCmdLine()
 		dlclose(tier0);
 		return NULL;
 	}
-	
+
 	if (!dladdr(msg, &info) || !info.dli_fbase || !info.dli_fname)
 	{
 		printf("Failed to get base address of libtier0.dylib\n");
 		dlclose(tier0);
 		return NULL;
 	}
-	
+
 	dlclose(tier0);
-	
+
 	return SymbolAddr<void *>(info.dli_fbase, tier0_syms, 0);
 }
 #endif
-

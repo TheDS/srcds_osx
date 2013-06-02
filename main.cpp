@@ -8,7 +8,7 @@
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License, version 3.0, as published by the
  * Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
@@ -71,7 +71,7 @@ bool SetSteamAppUser()
 		printf("Failed to open steamclient.dylib!\n");
 		return false;
 	}
-	
+
 	CreateInterfaceFn factory = (CreateInterfaceFn)dlsym(steamclient, "CreateInterface");
 	if (!factory)
 	{
@@ -79,7 +79,7 @@ bool SetSteamAppUser()
 		dlclose(steamclient);
 		return false;
 	}
-	
+
 	IClientEngine *clientEngine = (IClientEngine *)factory(CLIENTENGINE_INTERFACE_VERSION, NULL);
 	if (!clientEngine)
 	{
@@ -87,7 +87,7 @@ bool SetSteamAppUser()
 		dlclose(steamclient);
 		return false;
 	}
-	
+
 	HSteamPipe pipe = clientEngine->CreateSteamPipe();
 	if (!pipe)
 	{
@@ -95,7 +95,7 @@ bool SetSteamAppUser()
 		dlclose(steamclient);
 		return false;
 	}
-	
+
 	HSteamUser user = clientEngine->ConnectToGlobalUser(pipe);
 	if (!user)
 	{
@@ -117,7 +117,7 @@ bool SetSteamAppUser()
 
 	typedef const char * (*GetAccountName_t)(void *, char *, unsigned int);
 	GetAccountName_t GetAccountName = (GetAccountName_t)GetAccountNameFunc((void *)factory);
-	
+
 	char account[256];
 	if (!GetAccountName(clientUser, account, sizeof(account)) || account[0] == '\0')
 	{
@@ -127,7 +127,7 @@ bool SetSteamAppUser()
 		dlclose(steamclient);
 		return false;
 	}
-	
+
 	/* Needed to mount steam content */
 	setenv("SteamAppUser", account, 1);
 
@@ -143,14 +143,14 @@ int GetContentAppId(const char *game)
 {
 	char gameinfo_path[PATH_MAX];
 	mm_Format(gameinfo_path, sizeof(gameinfo_path), "%s/gameinfo.txt", game);
-	
+
 	FILE *fp = fopen(gameinfo_path, "rt");
 	if (!fp)
 	{
 		printf("Failed to read %s!\n", gameinfo_path);
 		return 0;
 	}
-	
+
 	bool filesys = false;
 	char line[256], key[128], value[128];
 	long id = 0;
@@ -159,33 +159,33 @@ int GetContentAppId(const char *game)
 		mm_TrimComments(line);
 		mm_TrimLeft(line);
 		mm_TrimRight(line);
-		
+
 		if (strcasecmp(line, "FileSystem") == 0)
 		{
 			filesys = true;
 		}
-		
+
 		if (!filesys)
 		{
 			continue;
 		}
-		
+
 		mm_KeySplit(line, key, sizeof(key), value, sizeof(value));
-		
+
 		if (strcasecmp(key, "SteamAppId") == 0)
 		{
 			id = strtol(value, NULL, 10);
 			break;
 		}
 	}
-	
+
 	if (id == 0)
 	{
 		printf("Couldn't find SteamAppId in gameinfo.txt!\n");
 	}
-	
+
 	fclose(fp);
-	
+
 	return id;
 }
 
@@ -209,7 +209,7 @@ int main(int argc, char **argv)
 #if defined(ENGINE_OBV)
 		else if (!steam && strcmp(argv[i], "-steam") == 0)
 		{
-			/* 
+			/*
 			 * This option is normally passed by the steam client in order to use the steam filesystem,
 			 * so we detect this in order to use the correct set of fixes/hacks.
 			 */
@@ -244,14 +244,14 @@ int main(int argc, char **argv)
 
 	char libPath[PATH_MAX];
 	char *oldPath = getenv("DYLD_LIBRARY_PATH");
-	mm_Format(libPath, sizeof(libPath), "%s:%s:%s/bin:%s/bin/osx32:%s", steamPath, cwd, cwd, cwd, oldPath);
-	
+	mm_Format(libPath, sizeof(libPath), "%s:%s/bin:%s/bin/osx32:%s:%s", cwd, cwd, cwd, steamPath, oldPath);
+
 	if (SetLibraryPath(libPath) != 0)
 	{
 		printf("Failed to set library path!\n");
 		return -1;
 	}
-	
+
 	int appid = 0;
 	if (steam)
 	{
@@ -261,7 +261,7 @@ int main(int argc, char **argv)
 		{
 			return -1;
 		}
-		
+
 #if defined(ENGINE_OBV)
 		/* Get appid so that we can mount content */
 		if (!(appid = GetContentAppId(game)))
@@ -305,7 +305,7 @@ int main(int argc, char **argv)
 	}
 #endif
 
-	/* 
+	/*
 	 * Prevent problem where files can't be found when executable path contains spaces.
 	 * We need to put quotation marks around it if necessary.
 	 * It seems this can happen when running under gdb or lldb.
@@ -316,17 +316,17 @@ int main(int argc, char **argv)
 		/* Need extra space for quotation marks */
 		size_t len = strlen(argv[0]) + 3;
 		execPath = new char[len];
-		
+
 		/* Copy original path */
 		strcpy(&execPath[1], argv[0]);
-		
+
 		/* Add quotations marks and null terminate */
 		execPath[0] = execPath[len - 2] = '"';
 		execPath[len - 1] = '\0';
-		
+
 		argv[0] = execPath;
 	}
-	
+
 #if defined(ENGINE_L4D)
 	typedef void (*BuildCmdLine_t)(int argc, char **argv);
 	BuildCmdLine_t BuildCmdLine = (BuildCmdLine_t)GetBuildCmdLine();
@@ -337,7 +337,7 @@ int main(int argc, char **argv)
 		delete[] execPath;
 		return -1;
 	}
-	
+
 	/* Game does not parse command line without this */
 	BuildCmdLine(argc, argv);
 #endif
