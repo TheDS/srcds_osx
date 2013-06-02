@@ -62,7 +62,7 @@ int main(int argc, char **argv)
 
 	char libPath[PATH_MAX];
 	char *oldPath = getenv("DYLD_LIBRARY_PATH");
-	mm_Format(libPath, sizeof(libPath), "%s:%s/bin:%s/bin/osx32:%s:%s", cwd, cwd, cwd, steamPath, oldPath);
+	mm_Format(libPath, sizeof(libPath), "%s:%s/bin:%s:%s", cwd, cwd, steamPath, oldPath);
 
 	if (SetLibraryPath(libPath) != 0)
 	{
