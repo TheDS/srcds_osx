@@ -24,18 +24,6 @@
 #import "mm_util.h"
 #import "cocoa_helpers.h"
 
-NSAutoreleasePool *launcherPool = NULL;
-
-void InitCocoaPool()
-{
-	launcherPool = [[NSAutoreleasePool alloc] init];
-}
-
-void ReleaseCocoaPool()
-{
-	[launcherPool release];
-}
-
 bool GetSteamPath(char *buf, size_t len)
 {
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];

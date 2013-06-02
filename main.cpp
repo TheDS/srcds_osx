@@ -342,9 +342,7 @@ int main(int argc, char **argv)
 	BuildCmdLine(argc, argv);
 #endif
 
-	InitCocoaPool();
 	int result = DedicatedMain(argc, argv);
-	ReleaseCocoaPool();
 
 	RemoveDedicatedDetours();
 

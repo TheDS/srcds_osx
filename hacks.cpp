@@ -51,6 +51,10 @@ static struct nlist dedicated_syms[7];
 static struct nlist launcher_syms[3];
 static struct nlist engine_syms[3];
 
+#if defined(ENGINE_OBV)
+static struct nlist fsstdio_syms[2];
+#endif
+
 #if defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 static struct nlist material_syms[11];
 #endif
@@ -80,6 +84,7 @@ CDetour *detSysLoadModules = NULL;
 CDetour *detGetAppId = NULL;
 CDetour *detSetAppId = NULL;
 CDetour *detLoadModule = NULL;
+CDetour *detFsLoadModule = NULL;
 CDetour *detSetShaderApi = NULL;
 CDetour *detDebugString = NULL;
 
@@ -167,6 +172,16 @@ bool InitSymbolData(const char *steamPath)
 		printf("Failed to find symbols for engine.dylib\n");
 		return false;
 	}
+
+
+#if defined(ENGINE_OBV)
+	memset(fsstdio_syms, 0, sizeof(fsstdio_syms));
+	fsstdio_syms[0].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc9Sys_Flags";
+	if (nlist("bin/filesystem_stdio.dylib", fsstdio_syms) != 0)
+	{
+		printf("Warning: Failed to find symbols for filesystem_stdio.dylib\n");
+	}
+#endif
 
 #if defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 	memset(material_syms, 0, sizeof(material_syms));
@@ -319,19 +334,24 @@ DETOUR_DECL_MEMBER1(CMaterialSystem_SetShaderAPI, void, const char *, pModuleNam
 
 #endif // ENGINE_L4D || ENGINE_CSGO
 
-#if defined(ENGINE_OBV) || defined(ENGINE_L4D) || defined(ENGINE_CSGO)
+#if defined(ENGINE_OBV)
+DETOUR_DECL_STATIC2(Sys_FsLoadModule, void *, const char *, pModuleName, int, flags)
+{
+	if (strstr(pModuleName, "chromehtml"))
+		return NULL;
+	else
+		return DETOUR_STATIC_CALL(Sys_FsLoadModule)(pModuleName, flags);
+}
+#endif
+
 DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 {
-#if defined(ENGINE_OBV)
-	if (strstr(pModuleName, "chromehtml.dylib"))
+	/* Avoid NSAutoreleasepool leaks from libcef */
+	if (strstr(pModuleName, "chromehtml"))
 	{
 		return NULL;
 	}
-	else
-	{
-		return DETOUR_STATIC_CALL(Sys_LoadModule)(pModuleName);
-	}
-#elif defined(ENGINE_L4D) || defined(ENGINE_CSGO)
+#if defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 	void *handle = NULL;
 
 #if defined(ENGINE_L4D)
@@ -393,13 +413,12 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 
 		detSetShaderApi->EnableDetour();
 
+		return handle;
 	}
 
-	return handle;
 #endif
+	return DETOUR_STATIC_CALL(Sys_LoadModule)(pModuleName);
 }
-
-#endif // ENGINE_L4D
 
 DETOUR_DECL_STATIC1(Plat_DebugString, void, const char *, str)
 {
@@ -463,6 +482,35 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	/* The engine and material system expect this interface to be available */
 	AppSysGroup_AddSystem(appsys, pCocoaMgr, "CocoaMgrInterface006");
 
+#if defined(ENGINE_OBV)
+	/* Preload filesystem_stdio to install a detour */
+	void *loadModule = NULL;
+	void *fs = dlopen("bin/filesystem_stdio.dylib", RTLD_NOW);
+
+	if (fs)
+	{
+		void *factory = dlsym(fs, "CreateInterface");
+		memset(&info, 0, sizeof(Dl_info));
+		if (dladdr(factory, &info) && info.dli_fbase && info.dli_fname)
+		{
+			loadModule = SymbolAddr<void *>(info.dli_fbase, fsstdio_syms, 0);
+			if (loadModule != info.dli_fbase)
+			{
+				detFsLoadModule = DETOUR_CREATE_STATIC(Sys_LoadModule, loadModule);
+				if (detFsLoadModule)
+				{
+					detFsLoadModule->EnableDetour();
+				}
+			}
+		}
+	}
+
+	if (!detFsLoadModule)
+	{
+		printf("Warning: Unable to detour Sys_LoadModule in filesystem_stdio\n");
+	}
+#endif
+
 #if !defined(ENGINE_OBV)
 	AppSystemInfo_t sys_before[] =
 	{
@@ -477,6 +525,12 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 
 	/* Call the original */
 	ret = DETOUR_MEMBER_CALL(CSys_LoadModules)(appsys);
+
+#if defined(ENGINE_OBV)
+	/* CSys::LoadModules has incremented the filesystem_stdio reference count, so we can close ours */
+	if (fs)
+		dlclose(fs);
+#endif
 
 	/* Engine should already be loaded at this point by the original function */
 	engine = dlopen("engine.dylib", RTLD_NOLOAD);
@@ -574,7 +628,6 @@ bool DoDedicatedHacks(void *entryPoint, bool steam, int appid)
 		return false;
 	}
 
-#if defined(ENGINE_OBV) || defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 	detLoadModule = DETOUR_CREATE_STATIC(Sys_LoadModule, loadModule);
 	if (!detLoadModule)
 	{
@@ -583,10 +636,8 @@ bool DoDedicatedHacks(void *entryPoint, bool steam, int appid)
 	}
 
 	detLoadModule->EnableDetour();
-#endif
 
 	detSysLoadModules->EnableDetour();
-
 
 	/* Failing to find Plat_DebugString is non-fatal */
 	tier0 = dlopen("libtier0.dylib", RTLD_NOLOAD);
@@ -619,6 +670,11 @@ void RemoveDedicatedDetours()
 	}
 
 #if defined(ENGINE_OBV)
+	if (detFsLoadModule)
+	{
+		detFsLoadModule->Destroy();
+	}
+
 	if (detGetAppId)
 	{
 		detGetAppId->Destroy(false);
@@ -630,12 +686,10 @@ void RemoveDedicatedDetours()
 	}
 #endif
 
-#if defined(ENGINE_OBV) || defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 	if (detLoadModule)
 	{
 		detLoadModule->Destroy();
 	}
-#endif
 }
 
 #if defined(ENGINE_OBV)
