@@ -46,7 +46,6 @@ typedef struct task_dyld_info task_dyld_info_data_t;
 #endif
 
 static struct nlist dyld_syms[3];
-static struct nlist steamclient_syms[4];
 static struct nlist dedicated_syms[7];
 static struct nlist launcher_syms[3];
 static struct nlist engine_syms[3];
@@ -103,7 +102,7 @@ static inline T SymbolAddr(void *base, struct nlist *syms, size_t idx)
 	return reinterpret_cast<T>(reinterpret_cast<uintptr_t>(base) + syms[idx].n_value);
 }
 
-bool InitSymbolData(const char *steamPath)
+bool InitSymbolData()
 {
 	memset(dyld_syms, 0, sizeof(dyld_syms));
 	dyld_syms[0].n_un.n_name = (char *)"__ZL18_dyld_set_variablePKcS0_";
@@ -114,25 +113,6 @@ bool InitSymbolData(const char *steamPath)
 		printf("Failed to find symbols for dyld\n");
 		return false;
 	}
-
-#if defined(ENGINE_OBV)
-	if (steamPath)
-	{
-		char clientPath[PATH_MAX];
-		mm_Format(clientPath, sizeof(clientPath), "%s/steamclient.dylib", steamPath);
-
-		memset(steamclient_syms, 0, sizeof(steamclient_syms));
-		steamclient_syms[0].n_un.n_name = (char *)"__ZN14IClientUserMap14GetAccountNameEPcj";
-		steamclient_syms[1].n_un.n_name = (char *)"__ZN15IClientUtilsMap8GetAppIDEv";
-		steamclient_syms[2].n_un.n_name = (char *)"__ZN15IClientUtilsMap22SetAppIDForCurrentPipeEjb";
-
-		if (nlist(clientPath, steamclient_syms) != 0)
-		{
-			printf("Failed to find symbols for steamclient.dylib\n");
-			return false;
-		}
-	}
-#endif
 
 	memset(dedicated_syms, 0, sizeof(dedicated_syms));
 	dedicated_syms[0].n_un.n_name = (char *)"__ZN4CSys11LoadModulesEP24CDedicatedAppSystemGroup";
@@ -425,18 +405,6 @@ DETOUR_DECL_STATIC1(Plat_DebugString, void, const char *, str)
 	/* Do nothing. K? */
 }
 
-#if defined(ENGINE_OBV)
-DETOUR_DECL_MEMBER0(GetAppID, int)
-{
-	return g_AppId;
-}
-
-DETOUR_DECL_MEMBER2(SetAppIDForCurrentPipe, int, int, nAppID, bool, bTrackProcess)
-{
-	return DETOUR_MEMBER_CALL(SetAppIDForCurrentPipe)(g_AppId, bTrackProcess);
-}
-#endif
-
 /* int CSys::LoadModules(CDedicatedAppSystemGroup *) */
 DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 {
@@ -589,7 +557,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	return ret;
 }
 
-bool DoDedicatedHacks(void *entryPoint, bool steam, int appid)
+bool DoDedicatedHacks(void *entryPoint)
 {
 	Dl_info info;
 	void *sysLoad, *loadModule;
@@ -674,90 +642,12 @@ void RemoveDedicatedDetours()
 	{
 		detFsLoadModule->Destroy();
 	}
-
-	if (detGetAppId)
-	{
-		detGetAppId->Destroy(false);
-	}
-
-	if (detSetAppId)
-	{
-		detSetAppId->Destroy(false);
-	}
 #endif
 
 	if (detLoadModule)
 	{
 		detLoadModule->Destroy();
 	}
-}
-
-#if defined(ENGINE_OBV)
-bool ForceSteamAppId(unsigned int appid)
-{
-	void *steamclient;
-	void *entryPoint;
-	void *getAppId;
-	void *setAppId;
-	Dl_info info;
-
-	steamclient = dlopen("steamclient.dylib", RTLD_LAZY);
-	if (!steamclient)
-	{
-		printf("Failed to load steamclient.dylib\n");
-		return false;
-	}
-
-	entryPoint = dlsym(steamclient, "CreateInterface");
-	if (!entryPoint)
-	{
-		printf("Failed to get steamclient.dylib entry point\n");
-		dlclose(steamclient);
-		return false;
-	}
-
-	if (!dladdr(entryPoint, &info) || !info.dli_fbase || !info.dli_fname)
-	{
-		printf("Failed to get base address of steamclient.dylib\n");
-		dlclose(steamclient);
-		return false;
-	}
-
-	getAppId = SymbolAddr<void *>(info.dli_fbase, steamclient_syms, 1);
-	setAppId = SymbolAddr<void *>(info.dli_fbase, steamclient_syms, 2);
-	detGetAppId = DETOUR_CREATE_MEMBER(GetAppID, getAppId);
-	detSetAppId = DETOUR_CREATE_MEMBER(SetAppIDForCurrentPipe, setAppId);
-
-        if (!detGetAppId)
-        {
-                printf("Failed to detour GetAppID function\n");
-		return false;
-        }
-
-	if (!detSetAppId)
-	{
-		printf("Failed to detour SetAppIDForCurrentPipe\n");
-		return false;
-	}
-
-	detGetAppId->EnableDetour();
-	detSetAppId->EnableDetour();
-	g_AppId = appid;
-
-	return true;
-}
-#endif
-
-void *GetAccountNameFunc(const void *entryPoint)
-{
-	Dl_info info;
-	if (!dladdr(entryPoint, &info) || !info.dli_fbase || !info.dli_fname)
-	{
-		printf("Failed to get base address of steamclient.dylib\n");
-		return NULL;
-	}
-
-	return SymbolAddr<void *>(info.dli_fbase, steamclient_syms, 0);
 }
 
 #if defined(ENGINE_L4D)
