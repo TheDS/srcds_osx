@@ -70,8 +70,16 @@ init() {
 	PARAMS=$*
 	NUMFORKS=""
 	NO_DEFAULT_MAP=0
-	DEFAULT_GAME="csgo"
-	DEFAULT_MAP="de_dust"
+	if [ -d "csgo" ]; then
+		DEFAULT_GAME="csgo"
+		DEFAULT_MAP="de_dust"
+	elif [ -d "insurgency" ]; then
+		DEFAULT_GAME="insurgency"
+		DEFAULT_MAP="market"
+	else
+		DEFAULT_GAME=""
+		DEFAULT_MAP=""
+	fi
 
 	# Remove any old default pid files
 	# Cant do this as they may be still running
