@@ -49,11 +49,11 @@ static struct nlist dyld_syms[3];
 static struct nlist dedicated_syms[7];
 
 #if !defined(ENGINE_INS)
-static struct nlist launcher_syms[3];
+static struct nlist launcher_syms[5];
 static struct nlist engine_syms[3];
 #endif
 
-#if defined(ENGINE_OBV)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL)
 static struct nlist fsstdio_syms[2];
 #endif
 
@@ -89,6 +89,8 @@ CDetour *detLoadModule = NULL;
 CDetour *detFsLoadModule = NULL;
 CDetour *detSetShaderApi = NULL;
 CDetour *detDebugString = NULL;
+CDetour *detSdlInit = NULL;
+CDetour *detSdlShutdown = NULL;
 
 struct AppSystemInfo_t
 {
@@ -125,7 +127,7 @@ bool InitSymbolData()
 #else
 	dedicated_syms[2].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc";
 #endif
-#if !defined(ENGINE_OBV) && !defined(ENGINE_GMOD)
+#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL) && !defined(ENGINE_GMOD)
 	dedicated_syms[3].n_un.n_name = (char *)"_g_pFileSystem";
 	dedicated_syms[4].n_un.n_name = (char *)"__ZL17g_pBaseFileSystem";
 	dedicated_syms[5].n_un.n_name = (char *)"_g_FileSystem_Stdio";
@@ -140,8 +142,13 @@ bool InitSymbolData()
 #if !defined(ENGINE_INS)
 	memset(launcher_syms, 0, sizeof(launcher_syms));
 	launcher_syms[0].n_un.n_name = (char *)"__ZN15CAppSystemGroup9AddSystemEP10IAppSystemPKc";
+#if defined(ENGINE_OBV_SDL)
+	launcher_syms[1].n_un.n_name = (char *)"__Z12CreateSDLMgrv";
+	launcher_syms[2].n_un.n_name = (char *)"__ZN7CSDLMgr4InitEv";
+	launcher_syms[3].n_un.n_name = (char *)"__ZN7CSDLMgr8ShutdownEv";
+#else
 	launcher_syms[1].n_un.n_name = (char *)"_g_CocoaMgr";
-
+#endif
 	if (nlist("bin/launcher.dylib", launcher_syms) != 0)
 	{
 		printf("Failed to find symbols for launcher.dylib\n");
@@ -149,7 +156,7 @@ bool InitSymbolData()
 	}
 
 	memset(engine_syms, 0, sizeof(engine_syms));
-#if defined(ENGINE_OBV) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2)
 	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherMgr";
 #else
 	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherCocoaMgr";
@@ -162,7 +169,7 @@ bool InitSymbolData()
 	}
 #endif
 
-#if defined(ENGINE_OBV)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL)
 	memset(fsstdio_syms, 0, sizeof(fsstdio_syms));
 	fsstdio_syms[0].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc9Sys_Flags";
 	if (nlist("bin/filesystem_stdio.dylib", fsstdio_syms) != 0)
@@ -322,7 +329,7 @@ DETOUR_DECL_MEMBER1(CMaterialSystem_SetShaderAPI, void, const char *, pModuleNam
 
 #endif // ENGINE_L4D || ENGINE_CSGO || ENGINE_INS
 
-#if defined(ENGINE_OBV) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2)
 DETOUR_DECL_STATIC2(Sys_FsLoadModule, void *, const char *, pModuleName, int, flags)
 {
 	if (strstr(pModuleName, "chromehtml"))
@@ -413,6 +420,17 @@ DETOUR_DECL_STATIC1(Plat_DebugString, void, const char *, str)
 	/* Do nothing. K? */
 }
 
+#if defined(ENGINE_OBV_SDL)
+DETOUR_DECL_MEMBER0(CSDLMgr_Init, int)
+{
+	/* Prevent SDL from initializing to avoid invoking OpenGL */
+	return 1;
+}
+
+DETOUR_DECL_MEMBER0(CSDLMgr_Shutdown, void)
+{
+}
+#endif
 
 #if !defined(ENGINE_INS)
 /* int CSys::LoadModules(CDedicatedAppSystemGroup *) */
@@ -455,12 +473,45 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	}
 
 	AppSysGroup_AddSystem = SymbolAddr<AddSystem_t>(info.dli_fbase, launcher_syms, 0);
+
+#if defined(ENGINE_OBV_SDL)
+	typedef void *(*CreateSdlMgr)(void);
+	CreateSdlMgr createSdlObj = SymbolAddr<CreateSdlMgr>(info.dli_fbase, launcher_syms, 1);
+	void *sdlInit = SymbolAddr<void *>(info.dli_fbase, launcher_syms, 2);
+	void *sdlShutdown = SymbolAddr<void *>(info.dli_fbase, launcher_syms, 3);
+
+	/* Detour SDL init and shutdown to avoid OpenGL */
+
+	detSdlInit = DETOUR_CREATE_MEMBER(CSDLMgr_Init, sdlInit);
+	if (!detSdlInit)
+	{
+		printf("Failed to create detour for CSDLMgr::Init!\n");
+		return false;
+	}
+
+	detSdlShutdown = DETOUR_CREATE_MEMBER(CSDLMgr_Shutdown, sdlShutdown);
+	if (!detSdlShutdown)
+	{
+		printf("Failed to create detour for CSDLMgr::Shutdown!\n");
+		return false;
+	}
+
+	detSdlInit->EnableDetour();
+	detSdlShutdown->EnableDetour();
+
+	pCocoaMgr = createSdlObj();
+#else
 	pCocoaMgr = SymbolAddr<void *>(info.dli_fbase, launcher_syms, 1);
+#endif
 
 	/* The engine and material system expect this interface to be available */
+#if defined(ENGINE_OBV_SDL)
+	AppSysGroup_AddSystem(appsys, pCocoaMgr, "SDLMgrInterface001");
+#else
 	AppSysGroup_AddSystem(appsys, pCocoaMgr, "CocoaMgrInterface006");
+#endif
 
-#if defined(ENGINE_OBV)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL)
 	/* Preload filesystem_stdio to install a detour */
 	void *loadModule = NULL;
 	void *fs = dlopen("bin/filesystem_stdio.dylib", RTLD_NOW);
@@ -489,7 +540,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	}
 #endif
 
-#if !defined(ENGINE_OBV)
+#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL)
 	AppSystemInfo_t sys_before[] =
 	{
 		{"inputsystem.dylib",	"InputSystemVersion001"},
@@ -504,7 +555,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	/* Call the original */
 	ret = DETOUR_MEMBER_CALL(CSys_LoadModules)(appsys);
 
-#if defined(ENGINE_OBV)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL)
 	/* CSys::LoadModules has incremented the filesystem_stdio reference count, so we can close ours */
 	if (fs)
 		dlclose(fs);
@@ -547,7 +598,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	quit[1] = 0x22;
 #endif
 
-#if !defined(ENGINE_OBV)
+#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL)
 	/* Load these to prevent crashes in engine and replay system */
 	AppSystemInfo_t sys_after[] =
 	{
@@ -572,7 +623,7 @@ bool DoDedicatedHacks(void *entryPoint)
 {
 	Dl_info info;
 	void *sysLoad, *loadModule;
-#if !defined(ENGINE_OBV) && !defined(ENGINE_GMOD)
+#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL) && !defined(ENGINE_GMOD)
 	void **pFileSystem;
 	void **pBaseFileSystem;
 	void *fileSystem;
@@ -589,7 +640,7 @@ bool DoDedicatedHacks(void *entryPoint)
 	sysLoad = SymbolAddr<unsigned char *>(info.dli_fbase, dedicated_syms, 0);
 	AppSysGroup_AddSystems = SymbolAddr<AddSystems_t>(info.dli_fbase, dedicated_syms, 1);
 	loadModule = SymbolAddr<void *>(info.dli_fbase, dedicated_syms, 2);
-#if !defined(ENGINE_OBV) && !defined(ENGINE_GMOD)
+#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL) && !defined(ENGINE_GMOD)
 	pFileSystem = SymbolAddr<void **>(info.dli_fbase, dedicated_syms, 3);
 	pBaseFileSystem = SymbolAddr<void **>(info.dli_fbase, dedicated_syms, 4);
 	fileSystem = SymbolAddr<void *>(info.dli_fbase, dedicated_syms, 5);
@@ -658,7 +709,7 @@ void RemoveDedicatedDetours()
 	}
 #endif
 
-#if defined(ENGINE_OBV) || defined(ENGINE_GMOD)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL)
 	if (detFsLoadModule)
 	{
 		detFsLoadModule->Destroy();
@@ -669,6 +720,18 @@ void RemoveDedicatedDetours()
 	{
 		detLoadModule->Destroy();
 	}
+
+#if defined(ENGINE_OBV_SDL)
+	if (detSdlInit)
+	{
+		detSdlInit->Destroy();
+	}
+
+	if (detSdlShutdown)
+	{
+		detSdlShutdown->Destroy();
+	}
+#endif
 }
 
 #if defined(ENGINE_L4D)
