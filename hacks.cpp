@@ -28,6 +28,8 @@
 #include <string.h>
 #include <dlfcn.h>
 
+#include <list>
+
 #include <AvailabilityMacros.h>
 #include <CoreServices/CoreServices.h>
 #include <mach/task.h>
@@ -53,8 +55,8 @@ static struct nlist launcher_syms[5];
 static struct nlist engine_syms[3];
 #endif
 
-#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL)
-static struct nlist fsstdio_syms[2];
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD)
+static struct nlist fsstdio_syms[7];
 #endif
 
 #if defined(ENGINE_L4D) || defined(ENGINE_CSGO) || defined(ENGINE_INS)
@@ -91,6 +93,8 @@ CDetour *detSetShaderApi = NULL;
 CDetour *detDebugString = NULL;
 CDetour *detSdlInit = NULL;
 CDetour *detSdlShutdown = NULL;
+CDetour *detDepotSetup = NULL;
+CDetour *detDepotMount = NULL;
 
 struct AppSystemInfo_t
 {
@@ -122,7 +126,7 @@ bool InitSymbolData()
 	memset(dedicated_syms, 0, sizeof(dedicated_syms));
 	dedicated_syms[0].n_un.n_name = (char *)"__ZN4CSys11LoadModulesEP24CDedicatedAppSystemGroup";
 	dedicated_syms[1].n_un.n_name = (char *)"__ZN15CAppSystemGroup10AddSystemsEP15AppSystemInfo_t";
-#if defined(ENGINE_GMOD) || defined(ENGINE_L4D2)
+#if defined(ENGINE_L4D2)
 	dedicated_syms[2].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc9Sys_Flags";
 #else
 	dedicated_syms[2].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc";
@@ -169,9 +173,16 @@ bool InitSymbolData()
 	}
 #endif
 
-#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD)
 	memset(fsstdio_syms, 0, sizeof(fsstdio_syms));
 	fsstdio_syms[0].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc9Sys_Flags";
+#if defined(ENGINE_GMOD)
+	fsstdio_syms[1].n_un.n_name = (char *)"__ZN9GameDepot6System5SetupEv";
+	fsstdio_syms[2].n_un.n_name = (char *)"__ZN9GameDepot6System7GetListEv";
+	fsstdio_syms[3].n_un.n_name = (char *)"__ZN9GameDepot6System4LoadEv";
+	fsstdio_syms[4].n_un.n_name = (char *)"__ZN9GameDepot6System5MountERN16IGameDepotSystem11InformationE";
+	fsstdio_syms[5].n_un.n_name = (char *)"__Z13FillDepotListRSt4listIN16IGameDepotSystem11InformationESaIS1_EE";
+#endif
 	if (nlist("bin/filesystem_stdio.dylib", fsstdio_syms) != 0)
 	{
 		printf("Warning: Failed to find symbols for filesystem_stdio.dylib\n");
@@ -432,6 +443,57 @@ DETOUR_DECL_MEMBER0(CSDLMgr_Shutdown, void)
 }
 #endif
 
+#if defined(ENGINE_GMOD)
+
+struct GameDepotInfo
+{
+	int unknown;            // Appears to always be 14
+	int depotid;            // Game App ID
+	const char *title;      // Game Name
+	const char *folder;     // Game Directory
+	bool mounted;           // Determines if game content is mounted
+	bool vpk;               // Seems to flag games with VPK files before Steam3 became prevalent
+	bool owned;             // Determines if game is owned
+	bool installed;         // Determines if game is installed
+};
+
+typedef std::list<GameDepotInfo> &(*DepotGetList)(void *);
+typedef void (*DepotLoad)(void *);
+typedef void (*FillDepotList)(std::list<GameDepotInfo> &);
+
+DepotGetList g_GetDepotList;
+DepotLoad g_LoadDepots;
+FillDepotList g_FillDepotList;
+
+DETOUR_DECL_MEMBER0(GameDepotSys_Setup, void)
+{
+	static bool initialized = false;
+
+	if (!initialized)
+	{
+		initialized = true;
+
+		/* Fill depot list with supported games */
+		std::list<GameDepotInfo> &depots = g_GetDepotList(this);
+		g_FillDepotList(depots);
+
+		for (std::list<GameDepotInfo>::iterator i = depots.begin(); i != depots.end(); i++)
+		{
+			/* Dedicated servers on Linux and Windows set these for all games */
+			i->owned = 1;
+			i->installed = 1;
+		}
+
+		g_LoadDepots(this);
+	}
+}
+
+DETOUR_DECL_MEMBER1(GameDepotSys_Mount, bool, GameDepotInfo &, info)
+{
+	return true;
+}
+#endif
+
 #if !defined(ENGINE_INS)
 /* int CSys::LoadModules(CDedicatedAppSystemGroup *) */
 DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
@@ -511,7 +573,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	AppSysGroup_AddSystem(appsys, pCocoaMgr, "CocoaMgrInterface006");
 #endif
 
-#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD)
 	/* Preload filesystem_stdio to install a detour */
 	void *loadModule = NULL;
 	void *fs = dlopen("bin/filesystem_stdio.dylib", RTLD_NOW);
@@ -531,6 +593,41 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 					detFsLoadModule->EnableDetour();
 				}
 			}
+
+#if defined(ENGINE_GMOD)
+			void *depotSetup, *depotMount;
+			depotSetup = SymbolAddr<void *>(info.dli_fbase, fsstdio_syms, 1);
+			g_GetDepotList = SymbolAddr<DepotGetList>(info.dli_fbase, fsstdio_syms, 2);
+			g_LoadDepots = SymbolAddr<DepotLoad>(info.dli_fbase, fsstdio_syms, 3);
+			depotMount = SymbolAddr<void *>(info.dli_fbase, fsstdio_syms, 4);
+			g_FillDepotList = SymbolAddr<FillDepotList>(info.dli_fbase, fsstdio_syms, 5);
+
+			detDepotSetup = DETOUR_CREATE_MEMBER(GameDepotSys_Setup, depotSetup);
+
+			if (detDepotSetup)
+			{
+				detDepotSetup->EnableDetour();
+			}
+			else
+			{
+				printf("Failed to create detour for GameDepot::System::Setup!\n");
+				dlclose(fs);
+				return false;
+			}
+
+			detDepotMount = DETOUR_CREATE_MEMBER(GameDepotSys_Mount, depotMount);
+
+			if (detDepotMount)
+			{
+				detDepotMount->EnableDetour();
+			}
+			else
+			{
+				printf("Failed to create detour for GameDepot::System::Mount!\n");
+				dlclose(fs);
+				return false;
+			}
+#endif
 		}
 	}
 
@@ -540,7 +637,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	}
 #endif
 
-#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL)
+#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL) && !defined(ENGINE_GMOD)
 	AppSystemInfo_t sys_before[] =
 	{
 		{"inputsystem.dylib",	"InputSystemVersion001"},
@@ -555,7 +652,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	/* Call the original */
 	ret = DETOUR_MEMBER_CALL(CSys_LoadModules)(appsys);
 
-#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD)
 	/* CSys::LoadModules has incremented the filesystem_stdio reference count, so we can close ours */
 	if (fs)
 		dlclose(fs);
@@ -598,7 +695,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	quit[1] = 0x22;
 #endif
 
-#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL)
+#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL) && !defined(ENGINE_GMOD)
 	/* Load these to prevent crashes in engine and replay system */
 	AppSystemInfo_t sys_after[] =
 	{
@@ -709,7 +806,7 @@ void RemoveDedicatedDetours()
 	}
 #endif
 
-#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD)
 	if (detFsLoadModule)
 	{
 		detFsLoadModule->Destroy();
@@ -730,6 +827,18 @@ void RemoveDedicatedDetours()
 	if (detSdlShutdown)
 	{
 		detSdlShutdown->Destroy();
+	}
+#endif
+
+#if defined(ENGINE_GMOD)
+	if (detDepotSetup)
+	{
+		detDepotSetup->Destroy();
+	}
+
+	if (detDepotMount)
+	{
+		detDepotMount->Destroy();
 	}
 #endif
 }
