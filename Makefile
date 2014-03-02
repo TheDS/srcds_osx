@@ -4,11 +4,11 @@ OBJECTS = main.cpp hacks.cpp mm_util.cpp CDetour/detours.cpp asm/asm.c cocoa_hel
 
 CC = clang
 CXX = clang++
-CFLAGS = -pipe -fno-strict-aliasing -fvisibility=hidden -m32 -mmacosx-version-min=10.5 -Wall -Werror -Wno-deprecated-declarations
+CFLAGS = -pipe -fno-strict-aliasing -fvisibility=hidden -m32 -Wall -Werror -Wno-deprecated-declarations
 CXXFLAGS = -fvisibility-inlines-hidden
 OPTFLAGS = -O3
 DBGFLAGS = -g3
-LDFLAGS = -m32 -mmacosx-version-min=10.5 -framework Foundation -framework AppKit
+LDFLAGS = -m32 -framework Foundation -framework AppKit
 
 INCLUDE = -I.
 
@@ -18,6 +18,15 @@ ifeq "$(DEBUG)" "true"
 else
 	BIN_DIR = Release.$(ENGINE)
 	CFLAGS += $(OPTFLAGS)
+endif
+
+# Dota 2 binaries are built to run only on 10.7+
+ifeq "$(ENGINE)" "dota"
+	CFLAGS += -mmacosx-version-min=10.7
+	LDFLAGS += -mmacosx-version-min=10.7
+else
+	CFLAGS += -mmacosx-version-min=10.5
+	LDFLAGS += -mmacosx-version-min=10.5
 endif
 
 ifeq "$(ENGINE)" "obv"
