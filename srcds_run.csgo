@@ -28,7 +28,7 @@ fi
 
 # setup the libraries, local dir first!
 get_srcds_dir() {
-		SRCDS_DIR=`dirname $0`
+		SRCDS_DIR=`dirname "$0"`
 		pushd . > /dev/null
 		cd $SRCDS_DIR
 		SRCDS_DIR=`pwd`
