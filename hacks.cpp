@@ -185,10 +185,25 @@ bool InitSymbolData()
 	fsstdio_syms[4].n_un.n_name = (char *)"__ZN9GameDepot6System5MountERN16IGameDepotSystem11InformationE";
 	fsstdio_syms[5].n_un.n_name = (char *)"__Z13FillDepotListRSt4listIN16IGameDepotSystem11InformationESaIS1_EE";
 #endif
+#if defined(ENGINE_GMOD)
+	int notFound = nlist("bin/filesystem_stdio.dylib", fsstdio_syms);
+	if (notFound == 1 && fsstdio_syms[4].n_value == 0)
+	{
+		// Development version has an extra bool parameter
+		fsstdio_syms[4].n_un.n_name = (char *)"__ZN9GameDepot6System5MountERN16IGameDepotSystem11InformationEb";
+		notFound = nlist("bin/filesystem_stdio.dylib", fsstdio_syms);
+	}
+	if (notFound != 0)
+	{
+		printf("Failed to find symbols for filesystem_stdio.dylib\n");
+		return false;
+	}
+#else
 	if (nlist("bin/filesystem_stdio.dylib", fsstdio_syms) != 0)
 	{
 		printf("Warning: Failed to find symbols for filesystem_stdio.dylib\n");
 	}
+#endif
 #endif
 
 #if defined(ENGINE_L4D) || defined(ENGINE_CSGO) || defined(ENGINE_INS)
@@ -495,7 +510,7 @@ DETOUR_DECL_MEMBER0(GameDepotSys_Setup, void)
 	}
 }
 
-DETOUR_DECL_MEMBER1(GameDepotSys_Mount, bool, GameDepotInfo &, info)
+DETOUR_DECL_MEMBER2(GameDepotSys_Mount, bool, GameDepotInfo &, info, bool, unknown)
 {
 	return true;
 }
