@@ -128,7 +128,7 @@ bool InitSymbolData()
 	memset(dedicated_syms, 0, sizeof(dedicated_syms));
 	dedicated_syms[0].n_un.n_name = (char *)"__ZN4CSys11LoadModulesEP24CDedicatedAppSystemGroup";
 	dedicated_syms[1].n_un.n_name = (char *)"__ZN15CAppSystemGroup10AddSystemsEP15AppSystemInfo_t";
-#if defined(ENGINE_L4D2)
+#if defined(ENGINE_L4D2) || defined(ENGINE_ND)
 	dedicated_syms[2].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc9Sys_Flags";
 #else
 	dedicated_syms[2].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc";
@@ -162,7 +162,7 @@ bool InitSymbolData()
 	}
 
 	memset(engine_syms, 0, sizeof(engine_syms));
-#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2) || defined(ENGINE_ND)
 	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherMgr";
 #else
 	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherCocoaMgr";
@@ -359,7 +359,7 @@ DETOUR_DECL_MEMBER1(CMaterialSystem_SetShaderAPI, void, const char *, pModuleNam
 
 #endif // ENGINE_L4D || ENGINE_CSGO || ENGINE_INS
 
-#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2) || defined(ENGINE_ND)
 DETOUR_DECL_STATIC2(Sys_FsLoadModule, void *, const char *, pModuleName, int, flags)
 {
 	if (strstr(pModuleName, "chromehtml"))
@@ -780,7 +780,7 @@ bool DoDedicatedHacks(void *entryPoint)
 	}
 #endif
 
-#if defined(ENGINE_GMOD) || defined(ENGINE_L4D2)
+#if defined(ENGINE_GMOD) || defined(ENGINE_L4D2) || defined(ENGINE_ND)
 	detLoadModule = DETOUR_CREATE_STATIC(Sys_FsLoadModule, loadModule);
 #else
 	detLoadModule = DETOUR_CREATE_STATIC(Sys_LoadModule, loadModule);
