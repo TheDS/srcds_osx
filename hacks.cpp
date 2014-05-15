@@ -34,6 +34,7 @@
 #include <CoreServices/CoreServices.h>
 #include <mach/task.h>
 #include <mach-o/nlist.h>
+#include <crt_externs.h>
 
 /* Define things from 10.6 SDK for older SDKs */
 #ifndef MAC_OS_X_VERSION_10_6
@@ -138,6 +139,9 @@ bool InitSymbolData()
 	dedicated_syms[4].n_un.n_name = (char *)"__ZL17g_pBaseFileSystem";
 	dedicated_syms[5].n_un.n_name = (char *)"_g_FileSystem_Stdio";
 #endif
+#if defined(ENGINE_L4D)
+	dedicated_syms[6].n_un.n_name = (char *)"_g_szEXEName";
+#endif
 
 	if (nlist("bin/dedicated.dylib", dedicated_syms) != 0)
 	{
@@ -230,7 +234,7 @@ bool InitSymbolData()
 
 #if defined(ENGINE_L4D)
 	memset(tier0_syms, 0, sizeof(tier0_syms));
-	tier0_syms[0].n_un.n_name = (char *)"__Z12BuildCmdLineiPPc";
+	tier0_syms[0].n_un.n_name = (char *)"__ZL12linuxCmdline";
 
 	if (nlist("bin/libtier0.dylib", tier0_syms) != 0)
 	{
@@ -749,6 +753,9 @@ bool DoDedicatedHacks(void *entryPoint)
 	void **pBaseFileSystem;
 	void *fileSystem;
 #endif
+#if defined(ENGINE_L4D)
+	char *exeName;
+#endif
 
 	memset(&info, 0, sizeof(Dl_info));
 	if (!dladdr(entryPoint, &info) || !info.dli_fbase || !info.dli_fname)
@@ -768,6 +775,10 @@ bool DoDedicatedHacks(void *entryPoint)
 	/* Work around conflicts between FileSystem_Stdio and FileSystem_Steam */
 	*pFileSystem = fileSystem;
 	*pBaseFileSystem = fileSystem;
+#endif
+#if defined(ENGINE_L4D)
+	exeName = SymbolAddr<char *>(info.dli_fbase, dedicated_syms, 6);
+	strncpy(exeName, *_NSGetArgv()[0], 256);
 #endif
 
 #if !defined(ENGINE_INS)
@@ -873,7 +884,7 @@ void RemoveDedicatedDetours()
 }
 
 #if defined(ENGINE_L4D)
-void *GetBuildCmdLine()
+bool BuildCmdLine(int argc, char **argv)
 {
 	Dl_info info;
 	void *tier0 = NULL;
@@ -883,7 +894,7 @@ void *GetBuildCmdLine()
 	if (!tier0)
 	{
 		printf("Failed to get existing handle for libtier0.dylib (%s)\n", dlerror());
-		return NULL;
+		return false;
 	}
 
 	msg = dlsym(tier0, "Msg");
@@ -891,18 +902,43 @@ void *GetBuildCmdLine()
 	{
 		printf("Failed to find Msg (%s)\n", dlerror());
 		dlclose(tier0);
-		return NULL;
+		return false;
 	}
 
 	if (!dladdr(msg, &info) || !info.dli_fbase || !info.dli_fname)
 	{
 		printf("Failed to get base address of libtier0.dylib\n");
 		dlclose(tier0);
-		return NULL;
+		return false;
 	}
 
 	dlclose(tier0);
 
-	return SymbolAddr<void *>(info.dli_fbase, tier0_syms, 0);
+	char *cmdline = SymbolAddr<char *>(info.dli_fbase, tier0_syms, 0);
+	const int maxCmdLine = 512;
+	int len = 0;
+
+	for (int i = 0; i < argc; i++)
+	{
+		/* Account for spaces between command line paramaters and null terminator */
+		len += strlen(argv[i]) + 1;
+	}
+
+	if (len > maxCmdLine)
+	{
+		printf("Command line too long, %d max\n", maxCmdLine);
+		return false;
+	}
+
+	cmdline[0] = '\0';
+	for (int i = 0; i < argc; i++)
+	{
+		if (i > 0)
+			strcat(cmdline, " ");
+		strcat(cmdline, argv[i]);
+	}
+
+
+	return true;
 }
 #endif

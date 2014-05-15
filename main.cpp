@@ -114,18 +114,13 @@ int main(int argc, char **argv)
 	}
 
 #if defined(ENGINE_L4D)
-	typedef void (*BuildCmdLine_t)(int argc, char **argv);
-	BuildCmdLine_t BuildCmdLine = (BuildCmdLine_t)GetBuildCmdLine();
-
-	if (!BuildCmdLine)
+	/* Game does not parse command line without this */
+	if (!BuildCmdLine(argc, argv))
 	{
 		dlclose(lib);
 		delete[] execPath;
 		return -1;
 	}
-
-	/* Game does not parse command line without this */
-	BuildCmdLine(argc, argv);
 #endif
 
 	int result = DedicatedMain(argc, argv);

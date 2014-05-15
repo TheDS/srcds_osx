@@ -36,8 +36,7 @@ void RemoveDedicatedDetours();
 
 #if defined(ENGINE_L4D)
 
-/* Get address of BuildCmdLine in tier0 */
-void *GetBuildCmdLine();
+bool BuildCmdLine(int argc, char **argv);
 
 #endif
 
