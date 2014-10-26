@@ -36,7 +36,7 @@ bool GetSteamPath(char *buf, size_t len)
 		return false;
 	}
 
-	mm_Format(buf, len, "%s/Contents/MacOS/osx32", [app UTF8String]);
+	mm_Format(buf, len, "%s/Contents/MacOS", [app UTF8String]);
 
 	[pool release];
 	return true;
