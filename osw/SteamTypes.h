@@ -83,7 +83,7 @@
 
 
 #ifdef __GNUC__
-	typedef unsigned int errno_t;
+	typedef int errno_t;
 	
 	#ifdef _S4N_
 		typedef unsigned int size_t;

@@ -26,6 +26,8 @@
 #include <dlfcn.h>
 #include <limits.h>
 #include <unistd.h>
+#include <signal.h>
+#include <execinfo.h>
 
 #include "hacks.h"
 #include "mm_util.h"
@@ -41,8 +43,63 @@ extern void *g_Launcher;
 extern void *g_EmptyShader;
 #endif
 
+void crash_handler(int sig, siginfo_t *info, void *context)
+{
+	void *stack[128];
+	ucontext_t *cx = (ucontext_t *)context;
+	void *eip = (void *)cx->uc_mcontext->__ss.__eip;
+
+	fprintf(stderr, "Caught signal %d (%s). Invalid memory access of %p from %p.\n", sig, strsignal(sig), info->si_addr, eip);
+
+	int nframes = backtrace(stack, sizeof(stack) / sizeof(void *)) - 1;
+
+	stack[2] = eip;
+
+	char **frames = backtrace_symbols(stack, nframes);
+
+	if (!frames)
+	{
+		fprintf(stderr, "Failed to generate backtrace!\n");
+		exit(sig);
+	}
+
+	fprintf(stderr, "Backtrace:\n");
+	for (int i = 0; i < nframes; i++)
+		fprintf(stderr, "#%s\n", frames[i]);
+
+	free(frames);
+
+	exit(sig);
+}
+
 int main(int argc, char **argv)
 {
+	bool shouldHandleCrash = false;
+
+	for (int i = 0; i < argc; i++)
+	{
+		if (strcmp(argv[i], "-nobreakpad") == 0)
+		{
+			shouldHandleCrash = true;
+			break;
+		}
+	}
+
+	// Catch
+	if (shouldHandleCrash)
+	{
+		stack_t sigstack;
+		sigstack.ss_sp = malloc(SIGSTKSZ);
+		sigaltstack(&sigstack, NULL);
+		struct sigaction sa;
+		sa.sa_sigaction = crash_handler;
+		sa.sa_flags = SA_ONSTACK | SA_SIGINFO;
+		sigemptyset(&sa.sa_mask);
+
+		sigaction(SIGSEGV, &sa, NULL);
+		sigaction(SIGBUS, &sa, NULL);
+	}
+
 	char steamPath[PATH_MAX];
 
 	GetSteamPath(steamPath, sizeof(steamPath));
