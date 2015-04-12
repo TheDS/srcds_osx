@@ -113,6 +113,16 @@ static inline T SymbolAddr(void *base, struct nlist *syms, size_t idx)
 	return reinterpret_cast<T>(reinterpret_cast<uintptr_t>(base) + syms[idx].n_value);
 }
 
+static inline void dumpUnknownSymbols(struct nlist *syms)
+{
+		while (syms->n_un.n_name)
+		{
+				if (syms->n_value == 0)
+						puts(syms->n_un.n_name);
+				syms++;
+		}
+}
+
 bool InitSymbolData()
 {
 	memset(dyld_syms, 0, sizeof(dyld_syms));
@@ -122,6 +132,7 @@ bool InitSymbolData()
 	if (nlist("/usr/lib/dyld", dyld_syms) != 0)
 	{
 		printf("Failed to find symbols for dyld\n");
+		dumpUnknownSymbols(dyld_syms);
 		return false;
 	}
 
@@ -146,6 +157,7 @@ bool InitSymbolData()
 	if (nlist("bin/dedicated.dylib", dedicated_syms) != 0)
 	{
 		printf("Failed to find symbols for dedicated.dylib\n");
+		dumpUnknownSymbols(dedicated_syms);
 		return false;
 	}
 
@@ -162,6 +174,7 @@ bool InitSymbolData()
 	if (nlist("bin/launcher.dylib", launcher_syms) != 0)
 	{
 		printf("Failed to find symbols for launcher.dylib\n");
+		dumpUnknownSymbols(launcher_syms);
 		return false;
 	}
 
@@ -175,6 +188,7 @@ bool InitSymbolData()
 	if (nlist("bin/engine.dylib", engine_syms) != 0)
 	{
 		printf("Failed to find symbols for engine.dylib\n");
+		dumpUnknownSymbols(engine_syms);
 		return false;
 	}
 #endif
@@ -200,12 +214,14 @@ bool InitSymbolData()
 	if (notFound != 0)
 	{
 		printf("Failed to find symbols for filesystem_stdio.dylib\n");
+		dumpUnknownSymbols(fsstdio_syms);
 		return false;
 	}
 #else
 	if (nlist("bin/filesystem_stdio.dylib", fsstdio_syms) != 0)
 	{
 		printf("Warning: Failed to find symbols for filesystem_stdio.dylib\n");
+		dumpUnknownSymbols(fsstdio_syms);
 	}
 #endif
 #endif
@@ -229,6 +245,7 @@ bool InitSymbolData()
 	if (nlist("bin/materialsystem.dylib", material_syms) != 0)
 	{
 		printf("Failed to find symbols for materialsystem.dylib\n");
+		dumpUnknownSymbols(material_syms);
 		return false;
 	}
 
@@ -239,6 +256,7 @@ bool InitSymbolData()
 	if (nlist("bin/libtier0.dylib", tier0_syms) != 0)
 	{
 		printf("Failed to find symbols for libtier0.dylib\n");
+		dumpUnknownSymbols(tier0_syms);
 		return false;
 	}
 #endif
