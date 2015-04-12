@@ -179,7 +179,7 @@ bool InitSymbolData()
 	}
 
 	memset(engine_syms, 0, sizeof(engine_syms));
-#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2) || defined(ENGINE_ND)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2) || defined(ENGINE_ND) || defined(ENGINE_CSGO)
 	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherMgr";
 #else
 	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherCocoaMgr";
