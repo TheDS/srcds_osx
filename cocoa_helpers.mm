@@ -26,18 +26,27 @@
 
 bool GetSteamPath(char *buf, size_t len)
 {
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	NSWorkspace *env = [NSWorkspace sharedWorkspace];
-	NSString *app = [env absolutePathForAppBundleWithIdentifier:@"com.valvesoftware.steam"];
+	bool found = false;
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];	
+	NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+	NSString *appSupport = [paths firstObject];
 	
-	if (!app)
+	if (!appSupport)
 	{
 		[pool release];
-		return false;
+		return found;
+	}
+	
+	NSString *steamPath = [appSupport stringByAppendingPathComponent:@"Steam/Steam.AppBundle/Steam/Contents/MacOS"];
+	NSFileManager *fileManager = [NSFileManager defaultManager];
+	BOOL isDir;
+	
+	if ([fileManager fileExistsAtPath:steamPath isDirectory:&isDir] && isDir)
+	{
+		mm_Format(buf, len, "%s", [steamPath UTF8String]);
+		found = true;
 	}
 
-	mm_Format(buf, len, "%s/Contents/MacOS", [app UTF8String]);
-
 	[pool release];
-	return true;
+	return found;
 }
