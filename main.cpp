@@ -29,10 +29,16 @@
 #include <signal.h>
 #include <execinfo.h>
 
+#include "platform.h"
 #include "hacks.h"
 #include "mm_util.h"
 #include "cocoa_helpers.h"
 
+#if defined(PLATFORM_X64)
+#define INSTR_PTR __rip
+#else
+#define INSTR_PTR __eip
+#endif
 //#define STEAMWORKS_CLIENT_INTERFACES
 //#include "osw/Steamclient.h"
 
@@ -47,7 +53,7 @@ void crash_handler(int sig, siginfo_t *info, void *context)
 {
 	void *stack[128];
 	ucontext_t *cx = (ucontext_t *)context;
-	void *eip = (void *)cx->uc_mcontext->__ss.__eip;
+	void *eip = (void *)cx->uc_mcontext->__ss.INSTR_PTR;
 
 	fprintf(stderr, "Caught signal %d (%s). Invalid memory access of %p from %p.\n", sig, strsignal(sig), info->si_addr, eip);
 
@@ -119,8 +125,11 @@ int main(int argc, char **argv)
 
 	char libPath[PATH_MAX];
 	char *oldPath = getenv("DYLD_LIBRARY_PATH");
+#if defined(PLATFORM_X64)
+	mm_Format(libPath, sizeof(libPath), "%s:%s/bin:%s/bin/osx64:%s:%s", cwd, cwd, cwd, steamPath, oldPath);
+#else
 	mm_Format(libPath, sizeof(libPath), "%s:%s/bin:%s:%s", cwd, cwd, steamPath, oldPath);
-
+#endif
 	if (SetLibraryPath(libPath) != 0)
 	{
 		printf("Failed to set library path!\n");

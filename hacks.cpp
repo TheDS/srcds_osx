@@ -36,6 +36,9 @@
 #include <mach-o/nlist.h>
 #include <crt_externs.h>
 
+#include "platform.h"
+#include "HSGameLib.h"
+
 /* Define things from 10.6 SDK for older SDKs */
 #ifndef MAC_OS_X_VERSION_10_6
 #define TASK_DYLD_INFO 17
@@ -48,13 +51,15 @@ typedef struct task_dyld_info task_dyld_info_data_t;
 #define TASK_DYLD_INFO_COUNT (sizeof(task_dyld_info_data_t) / sizeof(natural_t))
 #endif
 
+#if defined(PLATFORM_X86)
 static struct nlist dyld_syms[3];
+#endif
 
 #if !defined(ENGINE_DOTA)
 static struct nlist dedicated_syms[7];
 #endif
 
-#if !defined(ENGINE_INS) && !defined(ENGINE_DOTA)
+#if !defined(ENGINE_INS) && !defined(ENGINE_DOTA) && !defined(ENGINE_CSGO)
 static struct nlist launcher_syms[5];
 static struct nlist engine_syms[3];
 #endif
@@ -63,7 +68,7 @@ static struct nlist engine_syms[3];
 static struct nlist fsstdio_syms[7];
 #endif
 
-#if defined(ENGINE_L4D) || defined(ENGINE_CSGO) || defined(ENGINE_INS)
+#if defined(ENGINE_L4D) || defined(ENGINE_INS)
 static struct nlist material_syms[11];
 #endif
 #if defined(ENGINE_L4D)
@@ -112,6 +117,46 @@ static inline T SymbolAddr(void *base, struct nlist *syms, size_t idx)
 {
 	return reinterpret_cast<T>(reinterpret_cast<uintptr_t>(base) + syms[idx].n_value);
 }
+
+#if defined(PLATFORM_X64) && defined(ENGINE_CSGO)
+static SymbolInfo dedicated_syms_[3];
+
+static inline void dumpUnknownSymbols(const SymbolInfo *info, size_t len)
+{
+	for (size_t i = 0; i < len; i++)
+	{
+		if (!info[i].address && info[i].name)
+			puts(info[i].name);
+	}
+}
+
+bool InitSymbolData()
+{
+	HSGameLib dedicated("dedicated");
+	const char *symbols[] = {
+		"_ZN4CSys11LoadModulesEP24CDedicatedAppSystemGroup",
+		"_ZN15CAppSystemGroup10FindSystemEPKc",
+		"_Z14Sys_LoadModulePKc",
+		nullptr
+	};
+	
+	int notFound = dedicated.ResolveHiddenSymbols(dedicated_syms_, symbols);
+	if (notFound > 0)
+	{
+		printf("Failed to find symbols for dedicated.dylib\n");
+		dumpUnknownSymbols(dedicated_syms_, ARRAY_LENGTH(dedicated_syms_));
+		return false;
+	}
+
+	return true;
+}
+
+int SetLibraryPath(const char *path)
+{
+	return HSGameLib::SetLibraryPath(path);
+}
+
+#else
 
 static inline void dumpUnknownSymbols(struct nlist *syms)
 {
@@ -301,6 +346,7 @@ int SetLibraryPath(const char *path)
 
 	return 0;
 }
+#endif // defined(PLATFORM_X64) && defined(ENGINE_CSGO)
 
 #if defined(ENGINE_L4D)
 
@@ -419,7 +465,7 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 	handle = DETOUR_STATIC_CALL(Sys_LoadModule)(pModuleName);
 
 	/* We need to install a detour in the materialsystem library, ugh */
-	if (handle && strstr(pModuleName, "bin/materialsystem.dylib"))
+	if (handle && strstr(pModuleName, "materialsystem.dylib"))
 	{
 		Dl_info info;
 		void *materialFactory = dlsym(handle, "CreateInterface");
@@ -437,7 +483,187 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 			dlclose(handle);
 			return NULL;
 		}
+		
+#if defined(ENGINE_CSGO)
+		HSGameLib matsys("materialsystem");
+		
+		/*const char *symbols[] = {
+			"_ZN15CMaterialSystem12SetShaderAPIEPKc",
+			"g_pShaderAPI",
+			"g_pShaderAPIDX8",
+			"g_pShaderDevice",
+			"g_pShaderDeviceDx8",
+			"g_pShaderDeviceMgr",
+			"g_pShaderDeviceMgrDx8",
+			"g_pShaderShadow",
+			"g_pShaderShadowDx8",
+			"g_pHWConfig",
+			nullptr
+		};
+	
+		int notFound = matsys.ResolveHiddenSymbols(material_syms_, symbols);
+		if (notFound > 0)
+		{
+			printf("Failed to find symbols for materialsystem.dylib\n");
+			dumpUnknownSymbols(material_syms_, ARRAY_LENGTH(material_syms_));
+			return NULL;
+		}
 
+		setShaderApi = material_syms_[0].address;
+
+#if defined(ENGINE_CSGO) || defined(ENGINE_INS)
+		g_pShaderAPI = (void **)material_syms_[1].address;
+		g_pShaderAPIDX8 = (void **)material_syms_[2].address;
+		g_pShaderDevice = (void **)material_syms_[3].address;
+		g_pShaderDeviceDx8 = (void **)material_syms_[4].address;
+		g_pShaderDeviceMgr = (void **)material_syms_[5].address;
+		g_pShaderDeviceMgrDx8 = (void **)material_syms_[6].address;
+		g_pShaderShadow = (void **)material_syms_[7].address;
+		g_pShaderShadowDx8 = (void **)material_syms_[8].address;
+		g_pHWConfig = (void **)material_syms_[9].address;
+#endif */
+
+		void ***vptr = (void ***)matsys.GetFactory()("VMaterialSystem080", NULL);
+		void **vtable = *vptr;
+		setShaderApi = vtable[10]; // IMaterialSystem::SetShaderAPI
+
+		detSetShaderApi = DETOUR_CREATE_MEMBER(CMaterialSystem_SetShaderAPI, setShaderApi);
+		if (!detSetShaderApi)
+		{
+			printf("Failed to create detour for CMaterialSystem::SetShaderAPI\n");
+			return NULL;
+		}
+
+		detSetShaderApi->EnableDetour();
+
+		// g_pShaderAPI: CShaderDeviceBase::GetWindowSize
+		{
+			const char sig[] = "\x55\x48\x89\xE5\x48\x8B\x3D\x2A\x2A\x2A\x2A\x48\x8B\x07\x48\x8B\x80\xA8\x00\x00\x00";
+			const int offset = 7;		
+			char *p = (char *)matsys.FindPattern(sig, sizeof(sig) - 1);
+			if (!p)
+			{
+				printf("Failed to find signature to locate g_pShaderAPI\n");
+				return nullptr;
+			}
+			uint32_t shaderOffs = *(uint32_t *)(p + offset);
+			g_pShaderAPI = (void **)(p + offset + 4 + shaderOffs);
+		}
+		
+		// g_pShaderAPIDX8: CMatRenderContext::SetLights
+		{
+			const char sig[] = "\x55\x48\x89\xE5\x48\x8D\x05\x2A\x2A\x2A\x2A\x48\x8B\x38\x48\x8B\x07\x48\x8B\x80\x38\x03\x00\x00";
+			const int offset = 7;
+			char *p = (char *)matsys.FindPattern(sig, sizeof(sig) - 1);
+			if (!p)
+			{
+				printf("Failed to find signature to locate g_pShaderAPIDX8\n");
+				return nullptr;
+			}
+			uint32_t shaderOffs = *(uint32_t *)(p + offset);
+			g_pShaderAPIDX8 = (void **)(p + offset + 4 + shaderOffs);
+		}
+		
+		// g_pShaderDevice: CMatRenderContext::DestoryStaticMesh
+		{
+			const char sig[] = "\x55\x48\x89\xE5\x48\x8D\x05\x2A\x2A\x2A\x2A\x48\x8B\x38\x48\x8B\x07\x48\x8B\x80\xC0\x00\x00\x00";
+			const int offset = 7;
+			char *p = (char *)matsys.FindPattern(sig, sizeof(sig) - 1);
+			if (!p)
+			{
+				printf("Failed to find signature to locate g_pShaderDevice\n");
+				return nullptr;
+			}
+			uint32_t shaderOffs = *(uint32_t *)(p + offset);
+			g_pShaderDevice = (void **)(p + offset + 4 + shaderOffs);
+		}
+
+		// g_pShaderDeviceDx8: CDynamicMeshDX8::HasEnoughRoom
+		{
+			const char sig[] = "\x55\x48\x89\xE5\x41\x57\x41\x56\x53\x50\x41\x89\xD6\x89\xF3\x49\x89\xFF\x48\x8D\x05\x2A\x2A\x2A\x2A\x48\x8B\x38\x48\x8B\x07\xFF\x90\x30\x01\x00\x00";
+			const int offset = 21;
+			char *p = (char *)matsys.FindPattern(sig, sizeof(sig) - 1);
+			if (!p)
+			{
+				printf("Failed to find signature to locate g_pShaderDeviceDx8\n");
+				return nullptr;
+			}
+			uint32_t shaderOffs = *(uint32_t *)(p + offset);
+			g_pShaderDeviceDx8 = (void **)(p + offset + 4 + shaderOffs);
+		}
+
+		// g_pShaderDeviceMgr: CMaterialSystem::GetModeCount
+		{
+			const char sig[] = "\x55\x48\x89\xE5\x48\x8D\x05\x2A\x2A\x2A\x2A\x48\x8B\x38\x48\x8B\x07\x48\x8B\x40\x60";
+			const int offset = 7;
+			char *p = (char *)matsys.FindPattern(sig, sizeof(sig) - 1);
+			if (!p)
+			{
+				printf("Failed to find signature to locate g_pShaderDeviceMgr\n");
+				return nullptr;
+			}
+			uint32_t shaderOffs = *(uint32_t *)(p + offset);
+			g_pShaderDeviceMgr = (void **)(p + offset + 4 + shaderOffs);
+		}
+		
+		// g_pShaderDeviceMgrDx8: CShaderAPIDx8::OnDeviceInit
+		{
+			const char sig[] = "\x55\x48\x89\xE5\x41\x57\x41\x56\x53\x50\x48\x89\xFB\xE8\x2A\x2A\x2A\x2A\x48\x8D\x05\x2A\x2A\x2A\x2A\x48\x8B\x38\x48\x8B\x07\x8B\x73\x08";
+			const int offset = 21;
+			char *p = (char *)matsys.FindPattern(sig, sizeof(sig) - 1);
+			if (!p)
+			{
+				printf("Failed to find signature to locate g_pShaderDeviceMgrDx8\n");
+				return nullptr;
+			}
+			uint32_t shaderOffs = *(uint32_t *)(p + offset);
+			g_pShaderDeviceMgrDx8 = (void **)(p + offset + 4 + shaderOffs);
+		}
+		
+		// g_pShaderShadow: CShaderSystem::TakeSnapshot
+		{
+			const char sig[] = "\x55\x48\x89\xE5\x41\x57\x41\x56\x53\x50\x49\x89\xFF\x48\x8D\x05\x2A\x2A\x2A\x2A\x48\x8B\x38\x48\x8B\x07\xFF\x90\x88\x00\x00\x00\x83\xF8\x5C\x7C\x33\x4C\x8D\x35\x2A\x2A\x2A\x2A\x49";
+			const int offset = 40;
+			char *p = (char *)matsys.FindPattern(sig, sizeof(sig) - 1);
+			if (!p)
+			{
+				printf("Failed to find signature to locate g_pShaderShadow\n");
+				return nullptr;
+			}
+			uint32_t shaderOffs = *(uint32_t *)(p + offset);
+			g_pShaderShadow = (void **)(p + offset + 4 + shaderOffs);
+		}
+		
+		// g_pShaderShadowDx8: CShaderAPIDx8::ClearSnapshots
+		{
+			const char sig[] = "\x55\x48\x89\xE5\x41\x56\x53\x48\x89\xFB\x4C\x8D\xB3\x78\x34\x00\x00\x4C\x89\xF7\xE8\x2A\x2A\x2A\x2A\x48\x8D\x05\x2A\x2A\x2A\x2A\x48";
+			const int offset = 28;
+			char *p = (char *)matsys.FindPattern(sig, sizeof(sig) - 1);
+			if (!p)
+			{
+				printf("Failed to find signature to locate g_pShaderShadowDx8\n");
+				return nullptr;
+			}
+			uint32_t shaderOffs = *(uint32_t *)(p + offset);
+			g_pShaderShadowDx8 = (void **)(p + offset + 4 + shaderOffs);
+		}
+		
+		// g_pHWConfig: CMaterialSystem::SupportsHDRMode
+		{
+			const char sig[] = "\x55\x48\x89\xE5\x48\x8B\x3D\x2A\x2A\x2A\x2A\x48\x8B\x07\x48\x8B\x80\x68\x01\x00\x00";
+			const int offset = 7;
+			char *p = (char *)matsys.FindPattern(sig, sizeof(sig) - 1);
+			if (!p)
+			{
+				printf("Failed to find signature to locate g_pHWConfig\n");
+				return nullptr;
+			}
+			uint32_t shaderOffs = *(uint32_t *)(p + offset);
+			g_pHWConfig = (void **)(p + offset + 4 + shaderOffs);
+		}
+
+		return handle;
+#else
 		setShaderApi = SymbolAddr<void *>(info.dli_fbase, material_syms, 0);
 
 #if defined(ENGINE_CSGO) || defined(ENGINE_INS)
@@ -462,6 +688,7 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 		detSetShaderApi->EnableDetour();
 
 		return handle;
+#endif
 	}
 
 #endif
@@ -537,6 +764,80 @@ DETOUR_DECL_MEMBER2(GameDepotSys_Mount, bool, GameDepotInfo &, info, bool, unkno
 	return true;
 }
 #endif
+
+#if defined(ENGINE_CSGO)
+DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
+{
+	/* Preload filesystem_stdio to install a detour */
+	void *loadModule = NULL;
+	HSGameLib fs("bin/osx64/filesystem_stdio");
+
+	if (fs.IsLoaded())
+	{
+		//loadModule = fs.ResolveHiddenSymbol("_Z14Sys_LoadModulePKc");
+		const char sig[] = "\x55\x48\x89\xE5\x41\x57\x41\x56\x41\x54\x53\x48\x81\xEC\x10\x08\x00\x00";
+		loadModule = fs.FindPattern(sig, sizeof(sig) - 1);
+		if (!loadModule)
+		{
+			printf("Failed to find signature for filesystem_stdio.dylib\n");
+			printf("_Z14Sys_LoadModulePKc");
+			return 0;
+		}
+		if (loadModule)
+		{
+			detFsLoadModule = DETOUR_CREATE_STATIC(Sys_LoadModule, loadModule);
+			if (detFsLoadModule)
+			{
+				detFsLoadModule->EnableDetour();
+			}
+			else
+			{
+				printf("Failed to create detour for filesystem_stdio`Sys_LoadModule!\n");
+				return 0;
+			}
+		}
+	}
+	else
+	{
+		printf("Failed to preload filesystem_stdio\n");
+		return 0;
+	}
+	
+	int ret = DETOUR_MEMBER_CALL(CSys_LoadModules)(appsys);
+	
+	typedef void *(*FindSystem_t)(void *, const char *);
+	FindSystem_t AppSysGroup_FindSystem = (FindSystem_t)dedicated_syms_[1].address;
+	void *sdl = AppSysGroup_FindSystem(appsys, "SDLMgrInterface001");
+	
+	HSGameLib engine("bin/osx64/engine");
+	
+	if (!engine.IsLoaded())
+	{
+		printf("Failed to load existing copy of engine.dylib\n");
+		return 0;
+	}
+	
+	// CGame::GetMainWindowAddress
+	const char sig[] = "\x55\x48\x89\xE5\x53\x50\x48\x89\xFB\x48\x8D\x05\x2A\x2A\x2A\x2A\x48\x8B\x38\x48\x8B\x07\xFF\x90\x08\x01\x00\x00";
+	const int offset = 12;
+	//void **engineSdl = engine.ResolveHiddenSymbol<void **>("g_pLauncherMgr");
+	char *p = (char *)engine.FindPattern(sig, sizeof(sig) - 1);
+	if (!p)
+	{
+		printf("Failed to find signature for engine.dylib\n");
+		printf("g_pLauncherMgr");
+		return 0;
+	}
+	
+	uint32_t launcherOffs = *(uint32_t *)(p + offset);
+	void **engineSdl = (void **)(p + offset + 4 + launcherOffs);
+	
+	*engineSdl = sdl;
+
+	return ret;
+}
+
+#else
 
 #if !defined(ENGINE_INS) && !defined(ENGINE_DOTA)
 /* int CSys::LoadModules(CDedicatedAppSystemGroup *) */
@@ -759,6 +1060,8 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	return ret;
 }
 #endif // !ENGINE_INS && !ENGINE_DOTA
+
+#endif
 
 bool DoDedicatedHacks(void *entryPoint)
 {

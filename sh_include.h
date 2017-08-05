@@ -85,7 +85,7 @@ inline void IA32_Mov_ESP_Disp8_Reg(JitWriter *jit, jit_int8_t disp8, jit_uint8_t
 
 inline void IA32_Write_Jump32_Abs(JitWriter *jit, jitoffs_t jmp, void *target)
 {
-	jit_int32_t disp = (int32_t)target - ((int32_t)jit->GetData() + jmp + 4);
+	jit_int32_t disp = jit_int32_t(intptr_t(target) - (intptr_t(jit->GetData()) + jmp + 4));
 	jit->rewrite(jmp, disp);
 }
 
