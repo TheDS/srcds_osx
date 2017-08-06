@@ -34,6 +34,33 @@
 
 CPageAlloc GenBuffer::ms_Allocator(16);
 
+static inline void RelativeJump32(GenBuffer &codegen, void *target)
+{
+	jitoffs_t call = IA32_Jump_Imm32(&codegen, 0);
+	IA32_Write_Jump32_Abs(&codegen, call, target);
+}
+
+#if defined(_WIN64) || defined(__x86_64__)
+static inline bool IsShortJump(GenBuffer &codegen, void *target)
+{
+	int64_t diff = int64_t(target) - int64_t(codegen.GetData()) + codegen.get_outputpos() + 5;
+	int32_t upperBits = (diff >> 32);
+	return upperBits == 0 || upperBits == -1;
+}
+#endif
+
+static inline void AbsJump(GenBuffer &codegen, void *target)
+{
+#if defined(_WIN64) || defined(__x86_64__)
+	if (IsShortJump(codegen, target))
+		RelativeJump32(codegen, target);
+	else
+		X64_Jump_Abs(&codegen, target);
+#else
+	RelativeJump32(codegen, target);
+#endif
+}
+
 CDetour *CDetourManager::CreateDetour(void *callbackfunction, void **trampoline, void *addr)
 {
 	CDetour *detour = new CDetour(callbackfunction, trampoline);
@@ -101,12 +128,19 @@ bool CDetour::CreateDetour()
 	{
 		return false;
 	}
-
+	
+	int requiredSize = OP_JMP_SIZE;
+	
+#if defined(_WIN64) || defined(__x86_64__)
+	if (!IsShortJump(codegen, detour_address))
+		requiredSize = X64_ABS_SIZE;
+#endif
+	
 	/*
 	 * Determine how many bytes to save from target function.
 	 * We want 5 for our detour jmp, but it could require more.
 	 */
-	detour_restore.bytes = copy_bytes((unsigned char *)detour_address, NULL, OP_JMP_SIZE);
+	detour_restore.bytes = copy_bytes((unsigned char *)detour_address, NULL, requiredSize);
 	
 	/* First, save restore bits */
 	memcpy(detour_restore.patch, (unsigned char *)detour_address, detour_restore.bytes);
@@ -116,9 +150,8 @@ bool CDetour::CreateDetour()
 	copy_bytes((unsigned char *)detour_address, codegen.GetData(), detour_restore.bytes);
 	
 	/* Return to the original function */
-	jitoffs_t call = IA32_Jump_Imm32(&codegen, 0);
-	IA32_Write_Jump32_Abs(&codegen, call, (unsigned char *)detour_address + detour_restore.bytes);
-	
+	AbsJump(codegen, (unsigned char *)detour_address + detour_restore.bytes);
+
 	codegen.SetRE();
 
 	*trampoline = codegen.GetData();

@@ -55,7 +55,7 @@ typedef struct task_dyld_info task_dyld_info_data_t;
 static struct nlist dyld_syms[3];
 #endif
 
-#if !defined(ENGINE_DOTA)
+#if !defined(ENGINE_DOTA) && !defined(ENGINE_CSGO)
 static struct nlist dedicated_syms[7];
 #endif
 
@@ -666,7 +666,7 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 #else
 		setShaderApi = SymbolAddr<void *>(info.dli_fbase, material_syms, 0);
 
-#if defined(ENGINE_CSGO) || defined(ENGINE_INS)
+#if defined(ENGINE_INS)
 		g_pShaderAPI = SymbolAddr<void **>(info.dli_fbase, material_syms, 1);
 		g_pShaderAPIDX8 = SymbolAddr<void **>(info.dli_fbase, material_syms, 2);
 		g_pShaderDevice = SymbolAddr<void **>(info.dli_fbase, material_syms, 3);
@@ -809,7 +809,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	FindSystem_t AppSysGroup_FindSystem = (FindSystem_t)dedicated_syms_[1].address;
 	void *sdl = AppSysGroup_FindSystem(appsys, "SDLMgrInterface001");
 	
-	HSGameLib engine("bin/osx64/engine");
+	HSGameLib engine("engine");
 	
 	if (!engine.IsLoaded())
 	{
@@ -986,9 +986,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	AppSystemInfo_t sys_before[] =
 	{
 		{"inputsystem.dylib",	"InputSystemVersion001"},
-#if defined(ENGINE_CSGO)
-		{"soundemittersystem.dylib",	"VSoundEmitter003"},
-#endif
+
 		{"",					""}
 	};
 	AppSysGroup_AddSystems(appsys, sys_before);
@@ -1044,7 +1042,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	/* Load these to prevent crashes in engine and replay system */
 	AppSystemInfo_t sys_after[] =
 	{
-#if defined(ENGINE_ND) || defined(ENGINE_L4D2) || defined(ENGINE_CSGO)
+#if defined(ENGINE_ND) || defined(ENGINE_L4D2)
 		{"vguimatsurface.dylib",	"VGUI_Surface031"},
 #else
 		{"vguimatsurface.dylib",	"VGUI_Surface030"},
@@ -1065,6 +1063,18 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 
 bool DoDedicatedHacks(void *entryPoint)
 {
+#if defined(ENGINE_CSGO)
+	/* Detour CSys::LoadModules() */
+	detSysLoadModules = DETOUR_CREATE_MEMBER(CSys_LoadModules, dedicated_syms_[0].address);
+	if (!detSysLoadModules)
+	{
+		printf("Failed to create detour for CSys::LoadModules\n");
+		return false;
+	}
+	detSysLoadModules->EnableDetour();
+	return true;
+#else
+
 	void *tier0, *dbgString;
 #if !defined(ENGINE_DOTA)
 	Dl_info info;
@@ -1147,6 +1157,8 @@ bool DoDedicatedHacks(void *entryPoint)
 	}
 
 	return true;
+
+#endif
 }
 
 void RemoveDedicatedDetours()

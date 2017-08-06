@@ -151,6 +151,9 @@ namespace SourceHook
 
 			void write_uint32(jit_uint32_t x)		{ push(x); }
 			void write_int32(jit_uint32_t x)		{ push(x); }
+			
+			void write_uint64(jit_uint64_t x)		{ push(x); }
+			void write_int64(jit_int64_t x)			{ push(x); }
 
 			jitoffs_t get_outputpos()
 			{

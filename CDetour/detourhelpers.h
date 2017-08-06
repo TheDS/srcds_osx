@@ -53,7 +53,7 @@ inline void SetMemExec(void *address, size_t size)
 	SetMemAccess(address, size, SH_MEM_READ|SH_MEM_EXEC);
 }
 
-inline void DoGatePatch(unsigned char *target, void *callback)
+inline void PatchRelJump32(unsigned char *target, void *callback)
 {
 	SetMemPatchable(target, 5);
 
@@ -61,6 +61,42 @@ inline void DoGatePatch(unsigned char *target, void *callback)
 	*(int32_t *)(&target[1]) = int32_t((unsigned char *)callback - (target + 5));
 	
 	SetMemExec(target, 5);
+}
+
+inline void PatchAbsJump64(unsigned char *target, void *callback)
+{
+	int i = 0;
+	SetMemPatchable(target, 14);
+	
+	target[i++] = IA32_PUSH_IMM32;
+	*(int32_t *)(&target[i]) = int32_t(int64_t(callback));
+	i += 4;
+	if ((int64_t(callback) >> 32) != 0)
+	{
+		target[i++] = IA32_MOV_RM_IMM32;
+		target[i++] = ia32_modrm(MOD_DISP8, 0, REG_SIB);
+		target[i++] = ia32_sib(NOSCALE, REG_NOIDX, REG_ESP);
+		target[i++] = 0x04;
+		*(int32_t *)(&target[i]) = (int64_t(callback) >> 32);
+		i += 4;
+	}
+	target[i] = IA32_RET;
+	
+	SetMemExec(target, 14);	
+}
+
+inline void DoGatePatch(unsigned char *target, void *callback)
+{
+#if defined(_WIN64) || defined(__x86_64__)
+	int64_t diff = int64_t(target) - int64_t(callback) + 5;
+	int32_t upperBits = (diff >> 32);
+	if (upperBits == 0 || upperBits == -1)
+		PatchRelJump32(target, callback);
+	else
+		PatchAbsJump64(target, callback);
+#else
+	PatchRelJump32(target, callback);
+#endif
 }
 
 inline void ApplyPatch(void *address, int offset, const patch_t *patch, patch_t *restore)

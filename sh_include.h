@@ -101,4 +101,73 @@ inline void IA32_Send_Jump32_Here(JitWriter *jit, jitoffs_t jmp)
 	IA32_Write_Jump32(jit, jmp, curptr);
 }
 
+/* 64-bit registers */
+#define REG_RAX REG_EAX
+#define REG_RCX REG_ECX
+#define REG_RDX REG_EDX
+#define REG_RBX REG_EBX
+#define REG_RSP REG_ESP
+#define REG_RBP REG_EBP
+#define REG_RSI REG_ESI
+#define REG_RDI	REG_EDI
+#define REG_R8	8
+#define REG_R9	9
+#define REG_R10	10
+#define REG_R11	11
+#define REG_R12	12
+#define REG_R13	13
+#define REG_R14 14
+#define REG_R15	15
+
+#define X64_REX_PREFIX	0x40
+
+inline void X64_Emit_Rex(JitWriter *jit, bool w, int r, int x, int b)
+{
+	jit->write_byte(X64_REX_PREFIX | ((int)w << 3) | ((r>>3)<<2) | ((x>>3)<<1) | (b>>3));
+}
+
+// Push 64-bit value onto the stack using two instructions.
+//
+// Pushing 0xF00DF00DF00DF00D:
+// push 0xF00DF00D
+// mov [rsp+4], 0xF00DF00D
+inline void X64_Push_Imm64(JitWriter *jit, jit_int64_t val)
+{
+	jit->write_ubyte(IA32_PUSH_IMM32);
+	jit->write_int32(val);
+	if ((val >> 32) != 0)
+		IA32_Mov_ESP_Disp8_Imm32(jit, 4, (val >> 32));
+}
+
+// Jump to absolute 64-bit address using multiple instructions.
+//
+// Jumping to address 0xF00DF00DF00DF00D:
+// push 0xF00DF00D
+// mov [rsp+4], 0xF00DF00D
+// ret
+inline void X64_Jump_Abs(JitWriter *jit, void *dest)
+{
+	X64_Push_Imm64(jit, jit_int64_t(dest));
+	IA32_Return(jit);
+}
+
+inline jitoffs_t X64_Mov_Reg_Imm64(JitWriter *jit, jit_uint8_t dest, jit_int64_t num)
+{
+	jitoffs_t offs;
+	X64_Emit_Rex(jit, true, 0, 0, dest);
+	jit->write_ubyte(IA32_MOV_REG_IMM+dest);
+	offs = jit->get_outputpos();
+	jit->write_int64(num);
+	return offs;
+}
+
+inline jitoffs_t IA32_Mov_Reg_Imm32(JitWriter *jit, jit_uint8_t dest, jit_int32_t num)
+{
+	jitoffs_t offs;
+	jit->write_ubyte(IA32_MOV_REG_IMM+dest);
+	offs = jit->get_outputpos();
+	jit->write_int32(num);
+	return offs;
+}
+
 #endif // _INCLUDE_SRCDS_OSX_SH_INCLUDE_H_

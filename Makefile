@@ -1,10 +1,12 @@
 BINARY = srcds_osx
 
-OBJECTS = main.cpp hacks.cpp mm_util.cpp CDetour/detours.cpp asm/asm.c cocoa_helpers.mm GameLibPosix.cpp HSGameLib.cpp
+OBJECTS = main.cpp hacks.cpp mm_util.cpp CDetour/detours.cpp asm/asm.c cocoa_helpers.mm GameLibPosix.cpp HSGameLib.cpp \
+	  libudis86/decode.c libudis86/itab.c libudis86/syn-att.c libudis86/syn-intel.c libudis86/syn.c libudis86/udis86.c
 
 CC = clang
 CXX = clang++
-CFLAGS = -pipe -fno-strict-aliasing -fvisibility=hidden -Wall -Werror -Wno-deprecated-declarations -Iamtl -DHAVE_STRING_H
+CFLAGS = -pipe -fno-strict-aliasing -fvisibility=hidden -Wall -Werror -Wno-deprecated-declarations \
+	-Wno-sometimes-uninitialized -Iamtl -DHAVE_STRING_H
 OBJCFLAGS = 
 CXXFLAGS = -fvisibility-inlines-hidden -std=c++14
 OPTFLAGS = -O3
@@ -86,6 +88,7 @@ all:
 check:
 	mkdir -p $(BIN_DIR)/asm
 	mkdir -p $(BIN_DIR)/CDetour
+	mkdir -p $(BIN_DIR)/libudis86
 
 obv:
 	$(MAKE) srcds_osx ENGINE=obv
@@ -124,6 +127,7 @@ cleanup:
 	rm -rf $(BIN_DIR)/*.o
 	rm -rf $(BIN_DIR)/asm/*.o
 	rm -rf $(BIN_DIR)/CDetour/*.o
+	rm -rf $(BIN_DIR)/libudis86/*.o
 	rm -rf $(BIN_DIR)/$(BINARY)
 
 clean:

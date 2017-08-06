@@ -110,12 +110,6 @@ int main(int argc, char **argv)
 
 	GetSteamPath(steamPath, sizeof(steamPath));
 
-	/* Initialize symbol offsets for various libraries that we will be using */
-	if (!InitSymbolData())
-	{
-		return -1;
-	}
-
 	char cwd[PATH_MAX];
 	if (!getcwd(cwd, sizeof(cwd)))
 	{
@@ -133,6 +127,12 @@ int main(int argc, char **argv)
 	if (SetLibraryPath(libPath) != 0)
 	{
 		printf("Failed to set library path!\n");
+		return -1;
+	}
+	
+	/* Initialize symbol offsets for various libraries that we will be using */
+	if (!InitSymbolData())
+	{
 		return -1;
 	}
 
