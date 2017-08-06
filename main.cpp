@@ -116,6 +116,14 @@ int main(int argc, char **argv)
 		printf("getcwd failed (%s)\n", strerror(errno));
 		return -1;
 	}
+	
+#if defined(PLATFORM_X86)
+	/* Initialize symbol offsets for various libraries that we will be using */
+	if (!InitSymbolData(steamPath))
+	{
+		return -1;
+	}
+#endif
 
 	char libPath[PATH_MAX];
 	char *oldPath = getenv("DYLD_LIBRARY_PATH");
@@ -130,11 +138,13 @@ int main(int argc, char **argv)
 		return -1;
 	}
 	
+#if defined(PLATFORM_X64)
 	/* Initialize symbol offsets for various libraries that we will be using */
-	if (!InitSymbolData())
+	if (!InitSymbolData(steamPath))
 	{
 		return -1;
 	}
+#endif
 
 	void *lib = dlopen("dedicated.dylib", RTLD_NOW);
 	if (!lib)

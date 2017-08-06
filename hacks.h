@@ -23,7 +23,7 @@
 #define _INCLUDE_SRCDS_OSX_HACKS_H_
 
 /* Initialize data required to resolve hidden symbols */
-bool InitSymbolData();
+bool InitSymbolData(const char *steamPath);
 
 /* Sets DYLD_LIBRARY_PATH */
 int SetLibraryPath(const char *path);

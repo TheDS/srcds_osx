@@ -75,6 +75,8 @@ static struct nlist material_syms[11];
 static struct nlist tier0_syms[2];
 #endif
 
+static struct nlist steamclient_syms[2];
+
 void *g_Launcher = NULL;
 
 #if defined(ENGINE_CSGO) || defined(ENGINE_INS)
@@ -96,10 +98,9 @@ CDetour *detGetAppId = NULL;
 CDetour *detSetAppId = NULL;
 CDetour *detLoadModule = NULL;
 CDetour *detFsLoadModule = NULL;
+CDetour *detSteamLoadModule = NULL;
 CDetour *detSetShaderApi = NULL;
 CDetour *detDebugString = NULL;
-CDetour *detSdlInit = NULL;
-CDetour *detSdlShutdown = NULL;
 CDetour *detDepotSetup = NULL;
 CDetour *detDepotMount = NULL;
 
@@ -130,7 +131,7 @@ static inline void dumpUnknownSymbols(const SymbolInfo *info, size_t len)
 	}
 }
 
-bool InitSymbolData()
+bool InitSymbolData(const char *steamPath)
 {
 	HSGameLib dedicated("dedicated");
 	const char *symbols[] = {
@@ -168,7 +169,7 @@ static inline void dumpUnknownSymbols(struct nlist *syms)
 		}
 }
 
-bool InitSymbolData()
+bool InitSymbolData(const char *steamPath)
 {
 	memset(dyld_syms, 0, sizeof(dyld_syms));
 	dyld_syms[0].n_un.n_name = (char *)"__ZL18_dyld_set_variablePKcS0_";
@@ -185,7 +186,7 @@ bool InitSymbolData()
 	memset(dedicated_syms, 0, sizeof(dedicated_syms));
 	dedicated_syms[0].n_un.n_name = (char *)"__ZN4CSys11LoadModulesEP24CDedicatedAppSystemGroup";
 	dedicated_syms[1].n_un.n_name = (char *)"__ZN15CAppSystemGroup10AddSystemsEP15AppSystemInfo_t";
-#if defined(ENGINE_L4D2) || defined(ENGINE_ND)
+#if defined(ENGINE_L4D2) || defined(ENGINE_ND) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD)
 	dedicated_syms[2].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc9Sys_Flags";
 #else
 	dedicated_syms[2].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc";
@@ -209,11 +210,7 @@ bool InitSymbolData()
 #if !defined(ENGINE_INS)
 	memset(launcher_syms, 0, sizeof(launcher_syms));
 	launcher_syms[0].n_un.n_name = (char *)"__ZN15CAppSystemGroup9AddSystemEP10IAppSystemPKc";
-#if defined(ENGINE_OBV_SDL)
-	launcher_syms[1].n_un.n_name = (char *)"__Z12CreateSDLMgrv";
-	launcher_syms[2].n_un.n_name = (char *)"__ZN7CSDLMgr4InitEv";
-	launcher_syms[3].n_un.n_name = (char *)"__ZN7CSDLMgr8ShutdownEv";
-#else
+#if !defined(ENGINE_OBV_SDL)
 	launcher_syms[1].n_un.n_name = (char *)"_g_CocoaMgr";
 #endif
 	if (nlist("bin/launcher.dylib", launcher_syms) != 0)
@@ -269,7 +266,6 @@ bool InitSymbolData()
 		dumpUnknownSymbols(fsstdio_syms);
 	}
 #endif
-#endif
 
 #if defined(ENGINE_L4D) || defined(ENGINE_CSGO) || defined(ENGINE_INS)
 	memset(material_syms, 0, sizeof(material_syms));
@@ -308,8 +304,29 @@ bool InitSymbolData()
 
 #endif // ENGINE_L4D || ENGINE_CSGO || ENGINE_INS
 
-#endif // !ENGINE_DOTA
+	memset(steamclient_syms, 0, sizeof(steamclient_syms));
+	steamclient_syms[0].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc9Sys_Flags";
+	
+	if (steamPath)
+	{
+		char clientPath[PATH_MAX];
+		mm_Format(clientPath, sizeof(clientPath), "%s/steamclient.dylib", steamPath);
 
+		int ret = nlist(clientPath, steamclient_syms);
+		if (ret == -1)
+			ret = nlist("bin/steamclient.dylib", steamclient_syms);
+			
+		if (ret != 0)
+		{
+			printf("Failed to find symbols for steamclient.dylib\n");
+			dumpUnknownSymbols(steamclient_syms);
+			return false;
+		}
+	}
+
+#endif // !ENGINE_DOTA
+	return true;
+#endif
 	return true;
 }
 
@@ -692,6 +709,7 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 	}
 
 #endif
+
 	return DETOUR_STATIC_CALL(Sys_LoadModule)(pModuleName);
 }
 
@@ -702,17 +720,13 @@ DETOUR_DECL_STATIC1(Plat_DebugString, void, const char *, str)
 	/* Do nothing. K? */
 }
 
-#if defined(ENGINE_OBV_SDL)
-DETOUR_DECL_MEMBER0(CSDLMgr_Init, int)
+DETOUR_DECL_STATIC2(Sys_SteamLoadModule, void *, const char *, pModuleName, int, flags)
 {
-	/* Prevent SDL from initializing to avoid invoking OpenGL */
-	return 1;
+	if (strstr(pModuleName, "steamservice"))
+		return NULL;
+	else
+		return DETOUR_STATIC_CALL(Sys_SteamLoadModule)(pModuleName, flags);
 }
-
-DETOUR_DECL_MEMBER0(CSDLMgr_Shutdown, void)
-{
-}
-#endif
 
 #if defined(ENGINE_GMOD)
 
@@ -764,6 +778,49 @@ DETOUR_DECL_MEMBER2(GameDepotSys_Mount, bool, GameDepotInfo &, info, bool, unkno
 	return true;
 }
 #endif
+
+bool BlockSteamService()
+{
+	void *steamclient = dlopen("steamclient.dylib", RTLD_LAZY);
+	if (!steamclient)
+	{
+		printf("Failed to get handle for steamclient.dylib (%s)\n", dlerror());
+		return false;
+	}
+	
+	void *steamclientFactory = dlsym(steamclient, "CreateInterface");
+	if (!steamclientFactory)
+	{
+		printf("Failed to find steamclient CreateInterface (%s)\n", dlerror());
+		dlclose(steamclient);
+		return false;
+	}
+	
+	Dl_info info;
+	if (!dladdr(steamclientFactory, &info) || !info.dli_fbase || !info.dli_fname)
+	{
+		printf("Failed to get base address of steamclient.dylib\n");
+		dlclose(steamclient);
+		return false;
+	}
+	
+	void *steamLoadModule = SymbolAddr<void *>(info.dli_fbase, steamclient_syms, 0);
+	detSteamLoadModule = DETOUR_CREATE_STATIC(Sys_SteamLoadModule, steamLoadModule);
+	
+	if (detSteamLoadModule)
+	{
+		detSteamLoadModule->EnableDetour();
+	}
+	else
+	{
+		printf("Failed to create detour for steamclient`Sys_LoadModule!\n");
+		dlclose(steamclient);
+		return false;
+	}
+	
+	dlclose(steamclient);
+	return true;
+}
 
 #if defined(ENGINE_CSGO)
 DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
@@ -843,6 +900,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 /* int CSys::LoadModules(CDedicatedAppSystemGroup *) */
 DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 {
+#if !defined(ENGINE_OBV_SDL)
 	Dl_info info;
 	void *launcherMain;
 	void *pCocoaMgr;
@@ -881,35 +939,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 
 	AppSysGroup_AddSystem = SymbolAddr<AddSystem_t>(info.dli_fbase, launcher_syms, 0);
 
-#if defined(ENGINE_OBV_SDL)
-	typedef void *(*CreateSdlMgr)(void);
-	CreateSdlMgr createSdlObj = SymbolAddr<CreateSdlMgr>(info.dli_fbase, launcher_syms, 1);
-	void *sdlInit = SymbolAddr<void *>(info.dli_fbase, launcher_syms, 2);
-	void *sdlShutdown = SymbolAddr<void *>(info.dli_fbase, launcher_syms, 3);
-
-	/* Detour SDL init and shutdown to avoid OpenGL */
-
-	detSdlInit = DETOUR_CREATE_MEMBER(CSDLMgr_Init, sdlInit);
-	if (!detSdlInit)
-	{
-		printf("Failed to create detour for CSDLMgr::Init!\n");
-		return false;
-	}
-
-	detSdlShutdown = DETOUR_CREATE_MEMBER(CSDLMgr_Shutdown, sdlShutdown);
-	if (!detSdlShutdown)
-	{
-		printf("Failed to create detour for CSDLMgr::Shutdown!\n");
-		return false;
-	}
-
-	detSdlInit->EnableDetour();
-	detSdlShutdown->EnableDetour();
-
-	pCocoaMgr = createSdlObj();
-#else
 	pCocoaMgr = SymbolAddr<void *>(info.dli_fbase, launcher_syms, 1);
-#endif
 
 	/* The engine and material system expect this interface to be available */
 #if defined(ENGINE_OBV_SDL)
@@ -1054,8 +1084,22 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 #endif
 
 	dlclose(engine);
+	
+	if (!BlockSteamService())
+		return 0;
 
 	return ret;
+#else
+	int ret;
+	
+	/* Call the original */
+	ret = DETOUR_MEMBER_CALL(CSys_LoadModules)(appsys);
+	
+	if (!BlockSteamService())
+		return 0;
+	
+	return ret;
+#endif
 }
 #endif // !ENGINE_INS && !ENGINE_DOTA
 
@@ -1122,7 +1166,7 @@ bool DoDedicatedHacks(void *entryPoint)
 	}
 #endif
 
-#if defined(ENGINE_GMOD) || defined(ENGINE_L4D2) || defined(ENGINE_ND)
+#if defined(ENGINE_GMOD) || defined(ENGINE_L4D2) || defined(ENGINE_ND) || defined(ENGINE_OBV_SDL)
 	detLoadModule = DETOUR_CREATE_STATIC(Sys_FsLoadModule, loadModule);
 #else
 	detLoadModule = DETOUR_CREATE_STATIC(Sys_LoadModule, loadModule);
@@ -1184,22 +1228,15 @@ void RemoveDedicatedDetours()
 	}
 #endif
 
+	if (detSteamLoadModule)
+	{
+		detSteamLoadModule->Destroy();
+	}
+
 	if (detLoadModule)
 	{
 		detLoadModule->Destroy();
 	}
-
-#if defined(ENGINE_OBV_SDL)
-	if (detSdlInit)
-	{
-		detSdlInit->Destroy();
-	}
-
-	if (detSdlShutdown)
-	{
-		detSdlShutdown->Destroy();
-	}
-#endif
 
 #if defined(ENGINE_GMOD)
 	if (detDepotSetup)
