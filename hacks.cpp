@@ -266,6 +266,7 @@ bool InitSymbolData(const char *steamPath)
 		dumpUnknownSymbols(fsstdio_syms);
 	}
 #endif
+#endif
 
 #if defined(ENGINE_L4D) || defined(ENGINE_CSGO) || defined(ENGINE_INS)
 	memset(material_syms, 0, sizeof(material_syms));
@@ -325,8 +326,6 @@ bool InitSymbolData(const char *steamPath)
 	}
 
 #endif // !ENGINE_DOTA
-	return true;
-#endif
 	return true;
 }
 
