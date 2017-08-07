@@ -55,11 +55,11 @@ typedef struct task_dyld_info task_dyld_info_data_t;
 static struct nlist dyld_syms[3];
 #endif
 
-#if !defined(ENGINE_DOTA) && !defined(ENGINE_CSGO)
+#if !defined(ENGINE_CSGO)
 static struct nlist dedicated_syms[7];
 #endif
 
-#if !defined(ENGINE_INS) && !defined(ENGINE_DOTA) && !defined(ENGINE_CSGO)
+#if !defined(ENGINE_INS) && !defined(ENGINE_CSGO)
 static struct nlist launcher_syms[5];
 static struct nlist engine_syms[3];
 #endif
@@ -182,7 +182,6 @@ bool InitSymbolData(const char *steamPath)
 		return false;
 	}
 
-#if !defined(ENGINE_DOTA)
 	memset(dedicated_syms, 0, sizeof(dedicated_syms));
 	dedicated_syms[0].n_un.n_name = (char *)"__ZN4CSys11LoadModulesEP24CDedicatedAppSystemGroup";
 	dedicated_syms[1].n_un.n_name = (char *)"__ZN15CAppSystemGroup10AddSystemsEP15AppSystemInfo_t";
@@ -325,7 +324,6 @@ bool InitSymbolData(const char *steamPath)
 		}
 	}
 
-#endif // !ENGINE_DOTA
 	return true;
 }
 
@@ -453,7 +451,6 @@ DETOUR_DECL_STATIC2(Sys_FsLoadModule, void *, const char *, pModuleName, int, fl
 }
 #endif
 
-#if !defined(ENGINE_DOTA)
 DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 {
 	/* Avoid NSAutoreleasepool leaks from libcef */
@@ -712,8 +709,6 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 	return DETOUR_STATIC_CALL(Sys_LoadModule)(pModuleName);
 }
 
-#endif // !ENGINE_DOTA
-
 DETOUR_DECL_STATIC1(Plat_DebugString, void, const char *, str)
 {
 	/* Do nothing. K? */
@@ -895,7 +890,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 
 #else
 
-#if !defined(ENGINE_INS) && !defined(ENGINE_DOTA)
+#if !defined(ENGINE_INS)
 /* int CSys::LoadModules(CDedicatedAppSystemGroup *) */
 DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 {
@@ -1100,7 +1095,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	return ret;
 #endif
 }
-#endif // !ENGINE_INS && !ENGINE_DOTA
+#endif // !ENGINE_INS
 
 #endif
 
@@ -1119,7 +1114,6 @@ bool DoDedicatedHacks(void *entryPoint)
 #else
 
 	void *tier0, *dbgString;
-#if !defined(ENGINE_DOTA)
 	Dl_info info;
 	void *sysLoad, *loadModule;
 #if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL) && !defined(ENGINE_GMOD)
@@ -1182,8 +1176,6 @@ bool DoDedicatedHacks(void *entryPoint)
 	detSysLoadModules->EnableDetour();
 #endif
 
-#endif // !defined(ENGINE_DOTA)
-
 	/* Failing to find Plat_DebugString is non-fatal */
 	tier0 = dlopen("libtier0.dylib", RTLD_NOLOAD);
 	if (tier0)
@@ -1210,8 +1202,6 @@ void RemoveDedicatedDetours()
 	{
 		detDebugString->Destroy();
 	}
-
-#if !defined(ENGINE_DOTA)
 
 #if !defined(ENGINE_INS)
 	if (detSysLoadModules)
@@ -1248,8 +1238,6 @@ void RemoveDedicatedDetours()
 		detDepotMount->Destroy();
 	}
 #endif
-
-#endif // !defined(ENGINE_DOTA)
 }
 
 #if defined(ENGINE_L4D)

@@ -55,9 +55,6 @@ endif
 ifeq "$(ENGINE)" "ins"
 	CFLAGS += -DENGINE_INS
 endif
-ifeq "$(ENGINE)" "dota"
-	CFLAGS += -DENGINE_DOTA
-endif
 
 OBJ := $(OBJECTS:%.cpp=$(BIN_DIR)/%.o)
 OBJ := $(OBJ:%.c=$(BIN_DIR)/%.o)
@@ -72,7 +69,7 @@ $(BIN_DIR)/%.o: %.c
 $(BIN_DIR)/%.o: %.mm
 	$(CXX) $(INCLUDE) $(CFLAGS) $(CXXFLAGS) -o $@ -c $<
 
-.PHONY: all check clean cleanup obv obv_sdl gmod l4d nd l4d2 csgo ins dota srcds_osx
+.PHONY: all check clean cleanup obv obv_sdl gmod l4d nd l4d2 csgo ins srcds_osx
 
 all:
 	$(MAKE) obv
@@ -83,7 +80,6 @@ all:
 	$(MAKE) l4d2
 	$(MAKE) csgo
 	$(MAKE) ins
-	$(MAKE) dota
 
 check:
 	mkdir -p $(BIN_DIR)/asm
@@ -114,9 +110,6 @@ csgo:
 ins:
 	$(MAKE) srcds_osx ENGINE=ins
 
-dota:
-	$(MAKE) srcds_osx ENGINE=dota
-
 srcds_osx: check $(OBJ)
 	$(CXX) $(OBJ) $(LDFLAGS) -o $(BIN_DIR)/$(BINARY)
 
@@ -139,5 +132,3 @@ clean:
 	make cleanup ENGINE=l4d2
 	make cleanup ENGINE=csgo
 	make cleanup ENGINE=ins
-	make cleanup ENGINE=dota
-
