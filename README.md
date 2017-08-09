@@ -5,19 +5,18 @@ This a command line only program for running dedicated servers for various Sourc
 
 Requirements
 ---
-* Mac OS X 10.5 or later
+* Mac OS X 10.5 or otherwise specified below
 * One or more of the Source games listed below
 
 Supported Games
 ---
-* Counter-Strike: Global Offensive
+* Counter-Strike: Global Offensive (OS X 10.7 required)
 * Counter-Strike: Source
 * Day of Defeat: Source
-* Dota 2
 * Garry's Mod
 * Half-Life Deathmatch: Source
 * Half-Life 2: Deathmatch
-* Insurgency
+* Insurgency (OS X 10.7 required)
 * Left 4 Dead
 * Left 4 Dead 2
 * Nuclear Dawn
