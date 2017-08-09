@@ -27,8 +27,13 @@ ifeq "$(ENGINE)" "csgo"
 	CFLAGS += -m64 -mmacosx-version-min=10.7
 	LDFLAGS += -m64 -mmacosx-version-min=10.7
 else
-	CFLAGS += -m32 -mmacosx-version-min=10.5
-	LDFLAGS += -m32 -mmacosx-version-min=10.5
+	ifeq "$(ENGINE)" "ins"
+		CFLAGS += -m32 -mmacosx-version-min=10.7
+		LDFLAGS += -m32 -mmacosx-version-min=10.7
+	else
+		CFLAGS += -m32 -mmacosx-version-min=10.5
+		LDFLAGS += -m32 -mmacosx-version-min=10.5
+	endif
 endif
 
 ifeq "$(ENGINE)" "obv"

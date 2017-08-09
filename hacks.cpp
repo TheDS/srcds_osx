@@ -57,10 +57,10 @@ static struct nlist dyld_syms[3];
 
 #if !defined(ENGINE_CSGO)
 static struct nlist dedicated_syms[7];
+static struct nlist launcher_syms[5];
 #endif
 
 #if !defined(ENGINE_INS) && !defined(ENGINE_CSGO)
-static struct nlist launcher_syms[5];
 static struct nlist engine_syms[3];
 #endif
 
@@ -68,7 +68,7 @@ static struct nlist engine_syms[3];
 static struct nlist fsstdio_syms[7];
 #endif
 
-#if defined(ENGINE_L4D) || defined(ENGINE_INS)
+#if defined(ENGINE_L4D)
 static struct nlist material_syms[11];
 #endif
 #if defined(ENGINE_L4D)
@@ -79,7 +79,7 @@ static struct nlist steamclient_syms[2];
 
 void *g_Launcher = NULL;
 
-#if defined(ENGINE_CSGO) || defined(ENGINE_INS)
+#if defined(ENGINE_CSGO)
 void *g_EmptyShader = NULL;
 
 static void **g_pShaderAPI;
@@ -103,6 +103,7 @@ CDetour *detSetShaderApi = NULL;
 CDetour *detDebugString = NULL;
 CDetour *detDepotSetup = NULL;
 CDetour *detDepotMount = NULL;
+CDetour *detSdlInit = NULL;
 
 struct AppSystemInfo_t
 {
@@ -206,10 +207,12 @@ bool InitSymbolData(const char *steamPath)
 		return false;
 	}
 
-#if !defined(ENGINE_INS)
 	memset(launcher_syms, 0, sizeof(launcher_syms));
 	launcher_syms[0].n_un.n_name = (char *)"__ZN15CAppSystemGroup9AddSystemEP10IAppSystemPKc";
-#if !defined(ENGINE_OBV_SDL)
+#if defined(ENGINE_INS)
+	launcher_syms[1].n_un.n_name = (char *)"__Z12CreateSDLMgrv";
+	launcher_syms[2].n_un.n_name = (char *)"__ZN7CSDLMgr4InitEv";
+#elif !defined(ENGINE_OBV_SDL)
 	launcher_syms[1].n_un.n_name = (char *)"_g_CocoaMgr";
 #endif
 	if (nlist("bin/launcher.dylib", launcher_syms) != 0)
@@ -219,8 +222,9 @@ bool InitSymbolData(const char *steamPath)
 		return false;
 	}
 
+#if !defined(ENGINE_INS)
 	memset(engine_syms, 0, sizeof(engine_syms));
-#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2) || defined(ENGINE_ND) || defined(ENGINE_CSGO)
+#if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2) || defined(ENGINE_ND)
 	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherMgr";
 #else
 	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherCocoaMgr";
@@ -232,7 +236,7 @@ bool InitSymbolData(const char *steamPath)
 		dumpUnknownSymbols(engine_syms);
 		return false;
 	}
-#endif
+#endif // !defined(ENGINE_INS)
 
 #if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD)
 	memset(fsstdio_syms, 0, sizeof(fsstdio_syms));
@@ -267,21 +271,9 @@ bool InitSymbolData(const char *steamPath)
 #endif
 #endif
 
-#if defined(ENGINE_L4D) || defined(ENGINE_CSGO) || defined(ENGINE_INS)
+#if defined(ENGINE_L4D)
 	memset(material_syms, 0, sizeof(material_syms));
 	material_syms[0].n_un.n_name = (char *)"__ZN15CMaterialSystem12SetShaderAPIEPKc";
-
-#if defined(ENGINE_CSGO) || defined(ENGINE_INS)
-	material_syms[1].n_un.n_name = (char *)"_g_pShaderAPI";
-	material_syms[2].n_un.n_name = (char *)"_g_pShaderAPIDX8";
-	material_syms[3].n_un.n_name = (char *)"_g_pShaderDevice";
-	material_syms[4].n_un.n_name = (char *)"_g_pShaderDeviceDx8";
-	material_syms[5].n_un.n_name = (char *)"_g_pShaderDeviceMgr";
-	material_syms[6].n_un.n_name = (char *)"_g_pShaderDeviceMgrDx8";
-	material_syms[7].n_un.n_name = (char *)"_g_pShaderShadow";
-	material_syms[8].n_un.n_name = (char *)"_g_pShaderShadowDx8";
-	material_syms[9].n_un.n_name = (char *)"_g_pHWConfig";
-#endif
 
 	if (nlist("bin/materialsystem.dylib", material_syms) != 0)
 	{
@@ -302,7 +294,7 @@ bool InitSymbolData(const char *steamPath)
 	}
 #endif
 
-#endif // ENGINE_L4D || ENGINE_CSGO || ENGINE_INS
+#endif // ENGINE_L4D || ENGINE_CSGO
 
 	memset(steamclient_syms, 0, sizeof(steamclient_syms));
 	steamclient_syms[0].n_un.n_name = (char *)"__Z14Sys_LoadModulePKc9Sys_Flags";
@@ -392,7 +384,7 @@ static inline const char *FixLibraryExt(const char *pModuleName, char *buffer, s
 
 #endif // ENGINE_L4D
 
-#if defined(ENGINE_L4D) || defined(ENGINE_CSGO) || defined(ENGINE_INS)
+#if defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 
 /* void CMaterialSystem::SetShaderAPI(const char *) */
 DETOUR_DECL_MEMBER1(CMaterialSystem_SetShaderAPI, void, const char *, pModuleName)
@@ -403,7 +395,7 @@ DETOUR_DECL_MEMBER1(CMaterialSystem_SetShaderAPI, void, const char *, pModuleNam
 	pModuleName = FixLibraryExt(pModuleName, module, sizeof(module));
 
 	DETOUR_MEMBER_CALL(CMaterialSystem_SetShaderAPI)(pModuleName);
-#elif defined(ENGINE_CSGO) || defined(ENGINE_INS)
+#elif defined(ENGINE_CSGO)
 	CreateInterfaceFn shaderFactory;
 
 	g_EmptyShader = dlopen(pModuleName, RTLD_NOW);
@@ -425,21 +417,23 @@ DETOUR_DECL_MEMBER1(CMaterialSystem_SetShaderAPI, void, const char *, pModuleNam
 	}
 
 	*g_pShaderAPI = shaderFactory("ShaderApi029", NULL);
-	*g_pShaderAPIDX8 = *g_pShaderAPI;
 	*g_pShaderDevice = shaderFactory("ShaderDevice001", NULL);
-	*g_pShaderDeviceDx8 = *g_pShaderDevice;
 	*g_pShaderDeviceMgr = shaderFactory("ShaderDeviceMgr001", NULL);
-	*g_pShaderDeviceMgrDx8 = *g_pShaderDeviceMgr;
 	*g_pShaderShadow = shaderFactory("ShaderShadow010", NULL);
-	*g_pShaderShadowDx8 = *g_pShaderShadow;
 	*g_pHWConfig = shaderFactory("MaterialSystemHardwareConfig013", NULL);
+
+	*g_pShaderAPIDX8 = *g_pShaderAPI;
+	*g_pShaderDeviceDx8 = *g_pShaderDevice;
+	*g_pShaderDeviceMgrDx8 = *g_pShaderDeviceMgr;
+	*g_pShaderShadowDx8 = *g_pShaderShadow;
+
 #endif
 
 	/* We can get rid of this now */
 	detSetShaderApi->Destroy();
 }
 
-#endif // ENGINE_L4D || ENGINE_CSGO || ENGINE_INS
+#endif // ENGINE_L4D || ENGINE_CSGO
 
 #if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2) || defined(ENGINE_ND)
 DETOUR_DECL_STATIC2(Sys_FsLoadModule, void *, const char *, pModuleName, int, flags)
@@ -458,7 +452,7 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 	{
 		return NULL;
 	}
-#if defined(ENGINE_L4D) || defined(ENGINE_CSGO) || defined(ENGINE_INS)
+#if defined(ENGINE_L4D) || defined(ENGINE_CSGO)
 	void *handle = NULL;
 
 #if defined(ENGINE_L4D)
@@ -679,18 +673,6 @@ DETOUR_DECL_STATIC1(Sys_LoadModule, void *, const char *, pModuleName)
 #else
 		setShaderApi = SymbolAddr<void *>(info.dli_fbase, material_syms, 0);
 
-#if defined(ENGINE_INS)
-		g_pShaderAPI = SymbolAddr<void **>(info.dli_fbase, material_syms, 1);
-		g_pShaderAPIDX8 = SymbolAddr<void **>(info.dli_fbase, material_syms, 2);
-		g_pShaderDevice = SymbolAddr<void **>(info.dli_fbase, material_syms, 3);
-		g_pShaderDeviceDx8 = SymbolAddr<void **>(info.dli_fbase, material_syms, 4);
-		g_pShaderDeviceMgr = SymbolAddr<void **>(info.dli_fbase, material_syms, 5);
-		g_pShaderDeviceMgrDx8 = SymbolAddr<void **>(info.dli_fbase, material_syms, 6);
-		g_pShaderShadow = SymbolAddr<void **>(info.dli_fbase, material_syms, 7);
-		g_pShaderShadowDx8 = SymbolAddr<void **>(info.dli_fbase, material_syms, 8);
-		g_pHWConfig = SymbolAddr<void **>(info.dli_fbase, material_syms, 9);
-#endif
-
 		detSetShaderApi = DETOUR_CREATE_MEMBER(CMaterialSystem_SetShaderAPI, setShaderApi);
 		if (!detSetShaderApi)
 		{
@@ -772,6 +754,13 @@ DETOUR_DECL_MEMBER2(GameDepotSys_Mount, bool, GameDepotInfo &, info, bool, unkno
 	return true;
 }
 #endif
+
+#if defined(ENGINE_INS)
+DETOUR_DECL_MEMBER0(CSDLMgr_Init, int)
+{
+	return 1;
+}
+#endif // defined(ENGINE_INS)
 
 bool BlockSteamService()
 {
@@ -890,7 +879,6 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 
 #else
 
-#if !defined(ENGINE_INS)
 /* int CSys::LoadModules(CDedicatedAppSystemGroup *) */
 DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 {
@@ -898,13 +886,20 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	Dl_info info;
 	void *launcherMain;
 	void *pCocoaMgr;
+#if !defined(ENGINE_INS)
 	void *engine;
 	void *engineFactory;
 	void **engineCocoa;
+#endif
 	int ret;
 
 	typedef void (*AddSystem_t)(void *, void *, const char *);
 	AddSystem_t AppSysGroup_AddSystem;
+#if defined(ENGINE_INS)
+	typedef void *(*CreateSDLMgr_t)(void);
+	CreateSDLMgr_t CreateSDLMgr;
+	void *sdlInit;
+#endif
 
 	g_Launcher = dlopen("launcher.dylib", RTLD_NOW);
 	if (!g_Launcher)
@@ -933,10 +928,31 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 
 	AppSysGroup_AddSystem = SymbolAddr<AddSystem_t>(info.dli_fbase, launcher_syms, 0);
 
+#if defined(ENGINE_INS)
+	CreateSDLMgr = SymbolAddr<CreateSDLMgr_t>(info.dli_fbase, launcher_syms, 1);
+	sdlInit = SymbolAddr<void *>(info.dli_fbase, launcher_syms, 2);
+
+	detSdlInit = DETOUR_CREATE_MEMBER(CSDLMgr_Init, sdlInit);
+	
+	if (detSdlInit)
+	{
+		detSdlInit->EnableDetour();
+	}
+	else
+	{
+		printf("Failed to create detour for CSDLMgr::Init!\n");
+		dlclose(g_Launcher);
+		g_Launcher = NULL;
+		return false;
+	}
+	
+	pCocoaMgr = CreateSDLMgr();
+#else
 	pCocoaMgr = SymbolAddr<void *>(info.dli_fbase, launcher_syms, 1);
+#endif
 
 	/* The engine and material system expect this interface to be available */
-#if defined(ENGINE_OBV_SDL)
+#if defined(ENGINE_OBV_SDL) || defined(ENGINE_INS)
 	AppSysGroup_AddSystem(appsys, pCocoaMgr, "SDLMgrInterface001");
 #else
 	AppSysGroup_AddSystem(appsys, pCocoaMgr, "CocoaMgrInterface006");
@@ -1006,7 +1022,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	}
 #endif
 
-#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL) && !defined(ENGINE_GMOD)
+#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL) && !defined(ENGINE_GMOD) && !defined(ENGINE_INS)
 	AppSystemInfo_t sys_before[] =
 	{
 		{"inputsystem.dylib",	"InputSystemVersion001"},
@@ -1025,6 +1041,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 		dlclose(fs);
 #endif
 
+#if !defined(ENGINE_INS)
 	/* Engine should already be loaded at this point by the original function */
 	engine = dlopen("engine.dylib", RTLD_NOLOAD);
 	if (!engine)
@@ -1078,6 +1095,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 #endif
 
 	dlclose(engine);
+#endif // !defined(ENGINE_INS)
 	
 	if (!BlockSteamService())
 		return 0;
@@ -1095,7 +1113,6 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	return ret;
 #endif
 }
-#endif // !ENGINE_INS
 
 #endif
 
@@ -1149,7 +1166,6 @@ bool DoDedicatedHacks(void *entryPoint)
 	strncpy(exeName, *_NSGetArgv()[0], 256);
 #endif
 
-#if !defined(ENGINE_INS)
 	/* Detour CSys::LoadModules() */
 	detSysLoadModules = DETOUR_CREATE_MEMBER(CSys_LoadModules, sysLoad);
 	if (!detSysLoadModules)
@@ -1157,7 +1173,6 @@ bool DoDedicatedHacks(void *entryPoint)
 		printf("Failed to create detour for CSys::LoadModules\n");
 		return false;
 	}
-#endif
 
 #if defined(ENGINE_GMOD) || defined(ENGINE_L4D2) || defined(ENGINE_ND) || defined(ENGINE_OBV_SDL)
 	detLoadModule = DETOUR_CREATE_STATIC(Sys_FsLoadModule, loadModule);
@@ -1172,9 +1187,7 @@ bool DoDedicatedHacks(void *entryPoint)
 
 	detLoadModule->EnableDetour();
 
-#if !defined(ENGINE_INS)
 	detSysLoadModules->EnableDetour();
-#endif
 
 	/* Failing to find Plat_DebugString is non-fatal */
 	tier0 = dlopen("libtier0.dylib", RTLD_NOLOAD);
@@ -1203,10 +1216,15 @@ void RemoveDedicatedDetours()
 		detDebugString->Destroy();
 	}
 
-#if !defined(ENGINE_INS)
 	if (detSysLoadModules)
 	{
 		detSysLoadModules->Destroy();
+	}
+	
+#if defined(ENGINE_INS)
+	if (detSdlInit)
+	{
+		detSdlInit->Destroy();
 	}
 #endif
 
