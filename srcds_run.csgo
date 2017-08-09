@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 #       Copyright (c) 2004, Valve LLC. All rights reserved.
 #
@@ -28,7 +28,7 @@ fi
 
 # setup the libraries, local dir first!
 get_srcds_dir() {
-		SRCDS_DIR=`dirname "$0"`
+		SRCDS_DIR=`dirname $0`
 		pushd . > /dev/null
 		cd $SRCDS_DIR
 		SRCDS_DIR=`pwd`
@@ -41,9 +41,9 @@ init() {
 
   	# setup the libraries, local dir first!
 	if test "Darwin" = `uname`; then
-		export DYLD_LIBRARY_PATH="${SRCDS_DIR}:${SRCDS_DIR}/bin:${DYLD_LIBRARY_PATH}"
+		export DYLD_LIBRARY_PATH="${SRCDS_DIR}/bin:${SRCDS_DIR}/bin/osx64:${DYLD_LIBRARY_PATH}"
 	else
-  		export LD_LIBRARY_PATH="${SRCDS_DIR}:${SRCDS_DIR}/bin:${LD_LIBRARY_PATH}"  
+		export LD_LIBRARY_PATH="${SRCDS_DIR}/bin:${SRCDS_DIR}/bin/linux64:${LD_LIBRARY_PATH}"
 	fi
 
 	# Initialises the various variables
@@ -76,9 +76,6 @@ init() {
 	elif [ -d "insurgency" ]; then
 		DEFAULT_GAME="insurgency"
 		DEFAULT_MAP="market"
-	elif [ -d "dota" ]; then
-		DEFAULT_GAME="dota"
-		DEFAULT_MAP="dota"
 	else
 		DEFAULT_GAME=""
 		DEFAULT_MAP=""
