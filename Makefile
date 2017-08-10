@@ -23,17 +23,19 @@ else
 	CFLAGS += $(OPTFLAGS)
 endif
 
+# CS:GO is 64-bit, all other games are 32-bit
 ifeq "$(ENGINE)" "csgo"
-	CFLAGS += -m64 -mmacosx-version-min=10.7
-	LDFLAGS += -m64 -mmacosx-version-min=10.7
+	CFLAGS += -m64
+	LDFLAGS += -m64
 else
-	ifeq "$(ENGINE)" "ins"
-		CFLAGS += -m32 -mmacosx-version-min=10.7
-		LDFLAGS += -m32 -mmacosx-version-min=10.7
-	else
-		CFLAGS += -m32 -mmacosx-version-min=10.5
-		LDFLAGS += -m32 -mmacosx-version-min=10.5
-	endif
+	CFLAGS += -m32
+	LDFLAGS += -m32
+endif
+
+# These games require 10.7
+ifneq (,$(filter csgo ins doi,$(ENGINE)))
+	CFLAGS += -mmacosx-version-min=10.7
+	LDFLAGS += -mmacosx-version-min=10.7
 endif
 
 ifeq "$(ENGINE)" "obv"
@@ -60,6 +62,9 @@ endif
 ifeq "$(ENGINE)" "ins"
 	CFLAGS += -DENGINE_INS
 endif
+ifeq "$(ENGINE)" "doi"
+	CFLAGS += -DENGINE_DOI
+endif
 
 OBJ := $(OBJECTS:%.cpp=$(BIN_DIR)/%.o)
 OBJ := $(OBJ:%.c=$(BIN_DIR)/%.o)
@@ -74,7 +79,7 @@ $(BIN_DIR)/%.o: %.c
 $(BIN_DIR)/%.o: %.mm
 	$(CXX) $(INCLUDE) $(CFLAGS) $(CXXFLAGS) -o $@ -c $<
 
-.PHONY: all check clean cleanup obv obv_sdl gmod l4d nd l4d2 csgo ins srcds_osx
+.PHONY: all check clean cleanup obv obv_sdl gmod l4d nd l4d2 csgo ins doi srcds_osx
 
 all:
 	$(MAKE) obv
@@ -85,6 +90,7 @@ all:
 	$(MAKE) l4d2
 	$(MAKE) csgo
 	$(MAKE) ins
+	$(MAKE) doi
 
 check:
 	mkdir -p $(BIN_DIR)/asm
@@ -115,6 +121,9 @@ csgo:
 ins:
 	$(MAKE) srcds_osx ENGINE=ins
 
+doi:
+	$(MAKE) srcds_osx ENGINE=doi
+
 srcds_osx: check $(OBJ)
 	$(CXX) $(OBJ) $(LDFLAGS) -o $(BIN_DIR)/$(BINARY)
 
@@ -137,3 +146,4 @@ clean:
 	make cleanup ENGINE=l4d2
 	make cleanup ENGINE=csgo
 	make cleanup ENGINE=ins
+	make cleanup ENGINE=doi

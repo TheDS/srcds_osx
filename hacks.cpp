@@ -60,7 +60,7 @@ static struct nlist dedicated_syms[7];
 static struct nlist launcher_syms[5];
 #endif
 
-#if !defined(ENGINE_INS) && !defined(ENGINE_CSGO)
+#if !defined(ENGINE_INS) && !defined(ENGINE_DOI) && !defined(ENGINE_CSGO)
 static struct nlist engine_syms[3];
 #endif
 
@@ -209,7 +209,7 @@ bool InitSymbolData(const char *steamPath)
 
 	memset(launcher_syms, 0, sizeof(launcher_syms));
 	launcher_syms[0].n_un.n_name = (char *)"__ZN15CAppSystemGroup9AddSystemEP10IAppSystemPKc";
-#if defined(ENGINE_INS)
+#if defined(ENGINE_INS) || defined(ENGINE_DOI)
 	launcher_syms[1].n_un.n_name = (char *)"__Z12CreateSDLMgrv";
 	launcher_syms[2].n_un.n_name = (char *)"__ZN7CSDLMgr4InitEv";
 #elif !defined(ENGINE_OBV_SDL)
@@ -222,7 +222,7 @@ bool InitSymbolData(const char *steamPath)
 		return false;
 	}
 
-#if !defined(ENGINE_INS)
+#if !defined(ENGINE_INS) && !defined(ENGINE_DOI)
 	memset(engine_syms, 0, sizeof(engine_syms));
 #if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD) || defined(ENGINE_L4D2) || defined(ENGINE_ND)
 	engine_syms[0].n_un.n_name = (char *)"_g_pLauncherMgr";
@@ -236,7 +236,7 @@ bool InitSymbolData(const char *steamPath)
 		dumpUnknownSymbols(engine_syms);
 		return false;
 	}
-#endif // !defined(ENGINE_INS)
+#endif // !defined(ENGINE_INS) && !defined(ENGINE_DOI)
 
 #if defined(ENGINE_OBV) || defined(ENGINE_OBV_SDL) || defined(ENGINE_GMOD)
 	memset(fsstdio_syms, 0, sizeof(fsstdio_syms));
@@ -755,12 +755,12 @@ DETOUR_DECL_MEMBER2(GameDepotSys_Mount, bool, GameDepotInfo &, info, bool, unkno
 }
 #endif
 
-#if defined(ENGINE_INS)
+#if defined(ENGINE_INS) || defined(ENGINE_DOI)
 DETOUR_DECL_MEMBER0(CSDLMgr_Init, int)
 {
 	return 1;
 }
-#endif // defined(ENGINE_INS)
+#endif // defined(ENGINE_INS) || defined(ENGINE_DOI)
 
 bool BlockSteamService()
 {
@@ -886,7 +886,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	Dl_info info;
 	void *launcherMain;
 	void *pCocoaMgr;
-#if !defined(ENGINE_INS)
+#if !defined(ENGINE_INS) && !defined(ENGINE_DOI)
 	void *engine;
 	void *engineFactory;
 	void **engineCocoa;
@@ -895,7 +895,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 
 	typedef void (*AddSystem_t)(void *, void *, const char *);
 	AddSystem_t AppSysGroup_AddSystem;
-#if defined(ENGINE_INS)
+#if defined(ENGINE_INS) || defined(ENGINE_DOI)
 	typedef void *(*CreateSDLMgr_t)(void);
 	CreateSDLMgr_t CreateSDLMgr;
 	void *sdlInit;
@@ -928,7 +928,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 
 	AppSysGroup_AddSystem = SymbolAddr<AddSystem_t>(info.dli_fbase, launcher_syms, 0);
 
-#if defined(ENGINE_INS)
+#if defined(ENGINE_INS) || defined(ENGINE_DOI)
 	CreateSDLMgr = SymbolAddr<CreateSDLMgr_t>(info.dli_fbase, launcher_syms, 1);
 	sdlInit = SymbolAddr<void *>(info.dli_fbase, launcher_syms, 2);
 
@@ -952,7 +952,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 #endif
 
 	/* The engine and material system expect this interface to be available */
-#if defined(ENGINE_OBV_SDL) || defined(ENGINE_INS)
+#if defined(ENGINE_OBV_SDL) || defined(ENGINE_INS) || defined(ENGINE_DOI)
 	AppSysGroup_AddSystem(appsys, pCocoaMgr, "SDLMgrInterface001");
 #else
 	AppSysGroup_AddSystem(appsys, pCocoaMgr, "CocoaMgrInterface006");
@@ -1022,7 +1022,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 	}
 #endif
 
-#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL) && !defined(ENGINE_GMOD) && !defined(ENGINE_INS)
+#if !defined(ENGINE_OBV) && !defined(ENGINE_OBV_SDL) && !defined(ENGINE_GMOD) && !defined(ENGINE_INS) && !defined(ENGINE_DOI)
 	AppSystemInfo_t sys_before[] =
 	{
 		{"inputsystem.dylib",	"InputSystemVersion001"},
@@ -1030,6 +1030,24 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 		{"",					""}
 	};
 	AppSysGroup_AddSystems(appsys, sys_before);
+#endif
+
+#if defined(ENGINE_DOI)
+	HSGameLib dedicated("dedicated");
+	const char lib[] = "bin/vscript.dylib";
+	char *badLib = (char *)dedicated.FindPattern(lib, sizeof(lib) - 1);
+	if (!badLib)
+	{
+		printf("Warning: Unable to locate bad library, bin/vscript.dylib. Server may crash on exit\n");
+	}
+	else
+	{
+		// Prevent a crash on exit
+		SetMemPatchable(badLib, 36);
+		strcpy(badLib, "libvstdlib.dylib");
+		strcpy(badLib + sizeof(lib), "VEngineCvar007");
+		SetMemExec(badLib, 36);	// These strings are actually in executable memory
+	}
 #endif
 
 	/* Call the original */
@@ -1041,7 +1059,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 		dlclose(fs);
 #endif
 
-#if !defined(ENGINE_INS)
+#if !defined(ENGINE_INS) && !defined(ENGINE_DOI)
 	/* Engine should already be loaded at this point by the original function */
 	engine = dlopen("engine.dylib", RTLD_NOLOAD);
 	if (!engine)
@@ -1095,7 +1113,7 @@ DETOUR_DECL_MEMBER1(CSys_LoadModules, int, void *, appsys)
 #endif
 
 	dlclose(engine);
-#endif // !defined(ENGINE_INS)
+#endif // !defined(ENGINE_INS) && !defined(ENGINE_DOI)
 	
 	if (!BlockSteamService())
 		return 0;
@@ -1221,7 +1239,7 @@ void RemoveDedicatedDetours()
 		detSysLoadModules->Destroy();
 	}
 	
-#if defined(ENGINE_INS)
+#if defined(ENGINE_INS) || defined(ENGINE_DOI)
 	if (detSdlInit)
 	{
 		detSdlInit->Destroy();
