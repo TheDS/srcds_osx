@@ -76,6 +76,9 @@ init() {
 	elif [ -d "insurgency" ]; then
 		DEFAULT_GAME="insurgency"
 		DEFAULT_MAP="market"
+	elif [ -d "doi" ]; then
+		DEFAULT_GAME="doi"
+		DEFAULT_MAP="bastogne"
 	else
 		DEFAULT_GAME=""
 		DEFAULT_MAP=""
